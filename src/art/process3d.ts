@@ -3,8 +3,8 @@ import type { PartId } from './Cells'
 import type { ProcId } from './procs'
 export type { ProcId } from './procs'
 
-/* Animirane razlage procesov v 3D celici. Vsak proces ima korake: napis, kateri deli so poudarjeni,
-   kam se premakne kamera in kaj se dogaja (delci, mehurčki, svetloba). Vsebina sledi zapiskom Celica.pdf. */
+/* Animated explanations of processes in the 3D cell. Every process has steps: a caption, which parts are highlighted,
+   where the camera moves and what happens (particles, vesicles, light). The content follows the cell notes. */
 
 export interface Spots {
   kind: 'animal' | 'plant' | 'prok'
@@ -18,8 +18,8 @@ export interface Spots {
   amp: { cilia: number; wave: number }
 }
 
-/** korak za kamero: poudarjeni deli, točka pogleda, polmer, ki naj bo viden, smer kamere (privzeto iz lege točke) */
-export interface ProcStep { hi: PartId[]; target: THREE.Vector3; r: number; dir?: THREE.Vector3; dur: number; /** točka oznake, ki sledi gibajočemu se delu */ lab?: Partial<Record<PartId, () => THREE.Vector3>> }
+/** a camera step: highlighted parts, focus point, the radius that should be visible, camera direction (by default from the point's position) */
+export interface ProcStep { hi: PartId[]; target: THREE.Vector3; r: number; dir?: THREE.Vector3; dur: number; /** label point that follows a moving part */ lab?: Partial<Record<PartId, () => THREE.Vector3>> }
 export interface Proc { steps: ProcStep[]; update: (step: number, local: number) => void; dispose: () => void }
 
 const V = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z)
@@ -40,7 +40,7 @@ export function buildProcess(id: ProcId, S: Spots, scene: THREE.Scene, dark: boo
   const sph = (r: number, d = 18) => { const g = new THREE.SphereGeometry(r, d, Math.round(d * 0.7)); geos.push(g); return g }
   const toon = (c: string, o: Partial<THREE.MeshToonMaterialParameters> = {}) => { const m = new THREE.MeshToonMaterial({ color: new THREE.Color(c), gradientMap: grad, transparent: true, ...o }); mats.push(m); return m }
   const ink = () => { const m = new THREE.MeshBasicMaterial({ color: new THREE.Color(INK), side: THREE.BackSide, transparent: true }); mats.push(m); return m }
-  /** kroglica z obrobo */
+  /** a small ball with an outline */
   const bead = (r: number, c: string, outline = 0.18) => {
     const g = new THREE.Group()
     const body = new THREE.Mesh(sph(r), toon(c))
@@ -50,7 +50,7 @@ export function buildProcess(id: ProcId, S: Spots, scene: THREE.Scene, dark: boo
     group.add(g)
     return g
   }
-  /** svetleč žarek (svetloba) */
+  /** a glowing beam (light) */
   const glow = (r: number, c: string, onTop = false) => {
     const m = new THREE.MeshBasicMaterial({ color: new THREE.Color(c), transparent: true, opacity: 0.5, depthWrite: false, depthTest: !onTop })
     mats.push(m)
@@ -70,7 +70,7 @@ export function buildProcess(id: ProcId, S: Spots, scene: THREE.Scene, dark: boo
   const restore: (() => void)[] = []
   let update: (step: number, local: number) => void = () => {}
 
-  /* ═════════ pot beljakovine ═════════ */
+  /* ═════════ the path of a protein ═════════ */
   if (id === 'protein' && S.golgi && S.gAxis) {
     const nPos = S.nPos, nR = S.nR
     const erP = V(0.6, 0.0, 1.58)
@@ -133,7 +133,7 @@ export function buildProcess(id: ProcId, S: Spots, scene: THREE.Scene, dark: boo
     }
   }
 
-  /* ═════════ celično dihanje ═════════ */
+  /* ═════════ cellular respiration ═════════ */
   if (id === 'dihanje') {
     const m = S.mito[0]
     const food = Array.from({ length: 6 }, () => bead(0.05, C.amber, 0.12))
@@ -247,7 +247,7 @@ export function buildProcess(id: ProcId, S: Spots, scene: THREE.Scene, dark: boo
     }
   }
 
-  /* ═════════ celična prebava (lizosom) ═════════ */
+  /* ═════════ cellular digestion (lysosome) ═════════ */
   if (id === 'prebava') {
     const mem = V(-2.0, 2.15, 1.05).normalize()
     const outside = mem.clone().multiplyScalar(3.9)

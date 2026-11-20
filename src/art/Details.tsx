@@ -7,7 +7,7 @@ import { ProkInner, ANCHOR } from './Cells'
 export interface Part { id: string; label: string; x: number; y: number; lx: number; ly: number }
 export interface Detail { id: DetailId; title: string; caption: string; vb: [number, number]; ox?: number; parts: Part[]; art: () => ReactNode }
 
-/* ───────────── risbe ───────────── */
+/* ───────────── drawings ───────────── */
 
 function MitoArt() {
   const w = 400, h = 190, R = rng(3)
@@ -141,7 +141,7 @@ function MembraneArt() {
     <g>
       <rect x={0} y={0} width={480} height={86} fill="var(--o-vak-f)" opacity={0.5} />
       <rect x={0} y={214} width={480} height={86} fill="var(--o-cyto)" />
-      <text x={16} y={40} className="dt-cap">zunanjost celice</text>
+      <text x={16} y={40} className="dt-cap">outside the cell</text>
       <text x={16} y={290} className="dt-cap">citoplazma</text>
       {xs.filter(x => !isProt(x)).map(x => (
         <g key={x}>
@@ -192,18 +192,18 @@ function ProkArt() {
 function LightMicroscopeArt() {
   return (
     <g strokeLinejoin="round">
-      {/* noga */}
+      {/* base */}
       <path d="M70,428C70,410 90,404 120,404H250C280,404 300,412 300,430V440H70Z" fill="var(--m-body)" stroke="var(--m-edge)" strokeWidth={2.5} />
       {/* stativ */}
       <path d="M232,404C236,360 262,330 262,282C262,220 236,176 196,150L206,132C258,160 290,214 290,284C290,338 268,370 264,404Z" fill="var(--m-body)" stroke="var(--m-edge)" strokeWidth={2.5} />
-      {/* vir svetlobe */}
+      {/* light source */}
       <ellipse cx={150} cy={392} rx={26} ry={9} fill="var(--m-metal)" stroke="var(--m-edge)" strokeWidth={2} />
       <path d="M150,382V356M136,380L124,362M164,380L176,362" stroke="var(--warn)" strokeWidth={2.5} strokeLinecap="round" />
-      {/* predmetna mizica in preparat */}
+      {/* stage and specimen */}
       <rect x={66} y={330} width={196} height={14} rx={4} fill="var(--m-body)" stroke="var(--m-edge)" strokeWidth={2.5} />
       <rect x={104} y={322} width={92} height={8} rx={1.5} fill="var(--m-glass)" stroke="var(--m-edge)" strokeWidth={1.5} />
       <rect x={140} y={323} width={20} height={6} rx={1} fill="var(--o-lizo)" opacity={0.6} />
-      {/* objektivi */}
+      {/* objectives */}
       <rect x={140} y={252} width={20} height={56} rx={4} fill="var(--m-metal)" stroke="var(--m-edge)" strokeWidth={2} />
       <rect x={144} y={300} width={12} height={10} rx={2} fill="var(--m-edge)" />
       <rect x={106} y={250} width={16} height={40} rx={4} fill="var(--m-metal)" stroke="var(--m-edge)" strokeWidth={2} transform="rotate(16 114 250)" />
@@ -216,7 +216,7 @@ function LightMicroscopeArt() {
       {/* okular */}
       <rect x={138} y={56} width={24} height={40} rx={3} fill="var(--m-metal)" stroke="var(--m-edge)" strokeWidth={2.5} />
       <rect x={132} y={48} width={36} height={10} rx={4} fill="var(--m-edge)" />
-      {/* vijaka */}
+      {/* focus knobs */}
       <circle cx={274} cy={300} r={22} fill="var(--m-metal)" stroke="var(--m-edge)" strokeWidth={2.5} />
       <circle cx={274} cy={300} r={9} fill="var(--m-body)" stroke="var(--m-edge)" strokeWidth={1.5} />
       <circle cx={276} cy={350} r={12} fill="var(--m-metal)" stroke="var(--m-edge)" strokeWidth={2.5} />
@@ -333,141 +333,141 @@ function CentriolesArt() {
 
 export const DETAILS: Record<DetailId, Detail> = {
   mitohondrij: {
-    id: 'mitohondrij', title: 'Mitohondrij', caption: 'Celično dihanje: nastanek ATP (energija).', vb: [480, 280], art: MitoArt,
+    id: 'mitohondrij', title: 'Mitochondrion', caption: 'Cellular respiration: ATP production (energy).', vb: [480, 280], art: MitoArt,
     parts: [
-      { id: 'zm', label: 'zunanja membrana', x: 240, y: 46, lx: 200, ly: 20 },
-      { id: 'nm', label: 'notranja nagubana membrana', x: 208, y: 102, lx: 200, ly: 266 },
-      { id: 'mx', label: 'matriks', x: 159, y: 172, lx: 40, ly: 244 },
-      { id: 'dnk', label: 'krožna DNK', x: 322, y: 131, lx: 420, ly: 22 },
-      { id: 'rb', label: 'ribosomi', x: 289, y: 180, lx: 430, ly: 262 },
+      { id: 'zm', label: 'outer membrane', x: 240, y: 46, lx: 200, ly: 20 },
+      { id: 'nm', label: 'folded inner membrane', x: 208, y: 102, lx: 200, ly: 266 },
+      { id: 'mx', label: 'matrix', x: 159, y: 172, lx: 40, ly: 244 },
+      { id: 'dnk', label: 'circular DNA', x: 322, y: 131, lx: 420, ly: 22 },
+      { id: 'rb', label: 'ribosomes', x: 289, y: 180, lx: 430, ly: 262 },
     ],
   },
   kloroplast: {
-    id: 'kloroplast', title: 'Kloroplast', caption: 'Plastid, v katerem poteka fotosinteza.', vb: [480, 280], art: ChloroArt,
+    id: 'kloroplast', title: 'Chloroplast', caption: 'A plastid in which photosynthesis takes place.', vb: [480, 280], art: ChloroArt,
     parts: [
-      { id: 'zm', label: 'zunanja membrana', x: 240, y: 36, lx: 100, ly: 16 },
-      { id: 'nm', label: 'notranja membrana', x: 330, y: 53, lx: 400, ly: 16 },
+      { id: 'zm', label: 'outer membrane', x: 240, y: 36, lx: 100, ly: 16 },
+      { id: 'nm', label: 'inner membrane', x: 330, y: 53, lx: 400, ly: 16 },
       { id: 'st', label: 'stroma', x: 150, y: 196, lx: 60, ly: 262 },
-      { id: 'tl', label: 'tilakoida', x: 266, y: 104, lx: 260, ly: 16 },
+      { id: 'tl', label: 'thylakoid', x: 266, y: 104, lx: 260, ly: 16 },
       { id: 'gr', label: 'granum', x: 314, y: 152, lx: 440, ly: 140 },
-      { id: 'dnk', label: 'kloroplastna DNK', x: 210, y: 210, lx: 230, ly: 268 },
-      { id: 'rb', label: 'ribosomi', x: 372, y: 200, lx: 410, ly: 262 },
+      { id: 'dnk', label: 'chloroplast DNA', x: 210, y: 210, lx: 230, ly: 268 },
+      { id: 'rb', label: 'ribosomes', x: 372, y: 200, lx: 410, ly: 262 },
     ],
   },
   jedro: {
-    id: 'jedro', title: 'Jedro', caption: 'Večina DNK, dedni zapis za beljakovine.', vb: [480, 300], art: NucleusArt,
+    id: 'jedro', title: 'Nucleus', caption: 'Most of the DNA, the genetic code for proteins.', vb: [480, 300], art: NucleusArt,
     parts: [
-      { id: 'ov', label: 'jedrni ovoj (dve membrani)', x: 138, y: 113, lx: 80, ly: 30 },
-      { id: 'po', label: 'jedrna pora', x: 295, y: 56, lx: 400, ly: 26 },
-      { id: 'kr', label: 'kromatin', x: 205, y: 196, lx: 80, ly: 280 },
-      { id: 'jc', label: 'jedrce', x: 272, y: 124, lx: 420, ly: 130 },
-      { id: 'rb', label: 'ribosomi na ovoju', x: 135, y: 210, lx: 56, ly: 236 },
+      { id: 'ov', label: 'nuclear envelope (two membranes)', x: 138, y: 113, lx: 80, ly: 30 },
+      { id: 'po', label: 'nuclear pore', x: 295, y: 56, lx: 400, ly: 26 },
+      { id: 'kr', label: 'chromatin', x: 205, y: 196, lx: 80, ly: 280 },
+      { id: 'jc', label: 'nucleolus', x: 272, y: 124, lx: 420, ly: 130 },
+      { id: 'rb', label: 'ribosomes on the envelope', x: 135, y: 210, lx: 56, ly: 236 },
     ],
   },
   er: {
-    id: 'er', title: 'Endoplazemski retikulum', caption: 'Splet membranskih prostorov: zrnati in gladki ER.', vb: [480, 260], art: ERArt,
+    id: 'er', title: 'Endoplasmic reticulum', caption: 'A network of membrane spaces: rough and smooth ER.', vb: [480, 260], art: ERArt,
     parts: [
-      { id: 'zer', label: 'zrnati ER', x: 132, y: 100, lx: 132, ly: 16 },
-      { id: 'rb', label: 'ribosomi', x: 80, y: 162, lx: 40, ly: 236 },
+      { id: 'zer', label: 'rough ER', x: 132, y: 100, lx: 132, ly: 16 },
+      { id: 'rb', label: 'ribosomes', x: 80, y: 162, lx: 40, ly: 236 },
       { id: 'cis', label: 'cisterna', x: 190, y: 176, lx: 200, ly: 236 },
-      { id: 'ger', label: 'gladki ER', x: 362, y: 156, lx: 370, ly: 246 },
+      { id: 'ger', label: 'smooth ER', x: 362, y: 156, lx: 370, ly: 246 },
     ],
   },
   golgi: {
-    id: 'golgi', title: 'Golgijev aparat', caption: 'Pripravi produkte za izločanje in membrane za obnovo.', vb: [480, 280], art: GolgiArt,
+    id: 'golgi', title: 'Golgi apparatus', caption: 'Prepares products for secretion and membranes for renewal.', vb: [480, 280], art: GolgiArt,
     parts: [
-      { id: 'cis', label: 'sploščene cisterne', x: 236, y: 140, lx: 110, ly: 268 },
-      { id: 'ves', label: 'mehurček (vezikel)', x: 360, y: 120, lx: 420, ly: 40 },
+      { id: 'cis', label: 'flattened cisternae', x: 236, y: 140, lx: 110, ly: 268 },
+      { id: 'ves', label: 'vesicle', x: 360, y: 120, lx: 420, ly: 40 },
     ],
   },
   membrana: {
-    id: 'membrana', title: 'Model tekočega mozaika', caption: 'Dvosloj fosfolipidov s plavajočimi proteini.', vb: [480, 300], art: MembraneArt,
+    id: 'membrana', title: 'Fluid mosaic model', caption: 'A phospholipid bilayer with floating proteins.', vb: [480, 300], art: MembraneArt,
     parts: [
-      { id: 'dv', label: 'dvosloj fosfolipidov', x: 466, y: 150, lx: 380, ly: 246 },
-      { id: 'gl', label: 'glava fosfolipida', x: 92, y: 110, lx: 150, ly: 46 },
-      { id: 'rp', label: 'hidrofobni rep', x: 77, y: 140, lx: 120, ly: 246 },
+      { id: 'dv', label: 'phospholipid bilayer', x: 466, y: 150, lx: 380, ly: 246 },
+      { id: 'gl', label: 'phospholipid head', x: 92, y: 110, lx: 150, ly: 46 },
+      { id: 'rp', label: 'hydrophobic tail', x: 77, y: 140, lx: 120, ly: 246 },
       { id: 'pr', label: 'protein', x: 330, y: 150, lx: 360, ly: 46 },
     ],
   },
   citoskelet: {
-    id: 'citoskelet', title: 'Celično ogrodje', caption: 'Preplet beljakovinskih nitk in cevk.', vb: [480, 250], art: CytoskeletonArt,
+    id: 'citoskelet', title: 'Cytoskeleton', caption: 'A network of protein filaments and tubes.', vb: [480, 250], art: CytoskeletonArt,
     parts: [
-      { id: 'mf', label: 'mikrofilamenti', x: 300, y: 56, lx: 300, ly: 22 },
-      { id: 'if', label: 'intermediarni filamenti', x: 240, y: 128, lx: 240, ly: 94 },
-      { id: 'mt', label: 'mikrotubuli', x: 200, y: 205, lx: 200, ly: 242 },
+      { id: 'mf', label: 'microfilaments', x: 300, y: 56, lx: 300, ly: 22 },
+      { id: 'if', label: 'intermediate filaments', x: 240, y: 128, lx: 240, ly: 94 },
+      { id: 'mt', label: 'microtubules', x: 200, y: 205, lx: 200, ly: 242 },
     ],
   },
   ribosom: {
-    id: 'ribosom', title: 'Ribosom', caption: 'Iz RNK in beljakovin, dve podenoti.', vb: [480, 220], art: RibosomeArt,
+    id: 'ribosom', title: 'Ribosome', caption: 'Made of RNA and proteins, two subunits.', vb: [480, 220], art: RibosomeArt,
     parts: [
-      { id: 'vp', label: 'večja podenota', x: 240, y: 96, lx: 400, ly: 70 },
-      { id: 'mp', label: 'manjša podenota', x: 240, y: 172, lx: 400, ly: 190 },
+      { id: 'vp', label: 'large subunit', x: 240, y: 96, lx: 400, ly: 70 },
+      { id: 'mp', label: 'small subunit', x: 240, y: 172, lx: 400, ly: 190 },
     ],
   },
   prokariont: {
-    id: 'prokariont', title: 'Prokariontska celica', caption: 'Brez jedra in membranskih organelov.', vb: [760, 420], art: ProkArt,
+    id: 'prokariont', title: 'Prokaryotic cell', caption: 'No nucleus and no membrane bound organelles.', vb: [760, 420], art: ProkArt,
     parts: [
-      { id: 'stena', label: 'celična stena', x: ANCHOR.prok.stena![0], y: ANCHOR.prok.stena![1], lx: 380, ly: 40 },
-      { id: 'membrana', label: 'celična membrana', x: ANCHOR.prok.membrana![0], y: ANCHOR.prok.membrana![1], lx: 640, ly: 50 },
-      { id: 'citoplazma', label: 'citoplazma', x: ANCHOR.prok.citoplazma![0], y: ANCHOR.prok.citoplazma![1], lx: 140, ly: 380 },
-      { id: 'dnk', label: 'krožna DNK', x: ANCHOR.prok.dnk![0], y: ANCHOR.prok.dnk![1], lx: 130, ly: 40 },
-      { id: 'ribosomi', label: 'ribosomi (manjši)', x: ANCHOR.prok.ribosomi![0], y: ANCHOR.prok.ribosomi![1], lx: 600, ly: 385 },
+      { id: 'stena', label: 'cell wall', x: ANCHOR.prok.stena![0], y: ANCHOR.prok.stena![1], lx: 380, ly: 40 },
+      { id: 'membrana', label: 'cell membrane', x: ANCHOR.prok.membrana![0], y: ANCHOR.prok.membrana![1], lx: 640, ly: 50 },
+      { id: 'citoplazma', label: 'cytoplasm', x: ANCHOR.prok.citoplazma![0], y: ANCHOR.prok.citoplazma![1], lx: 140, ly: 380 },
+      { id: 'dnk', label: 'circular DNA', x: ANCHOR.prok.dnk![0], y: ANCHOR.prok.dnk![1], lx: 130, ly: 40 },
+      { id: 'ribosomi', label: 'ribosomes (smaller)', x: ANCHOR.prok.ribosomi![0], y: ANCHOR.prok.ribosomi![1], lx: 600, ly: 385 },
     ],
   },
   svetlobni: {
-    id: 'svetlobni', title: 'Svetlobni mikroskop', caption: 'Skupna povečava = okular × objektiv.', vb: [480, 460], ox: 20, art: LightMicroscopeArt,
+    id: 'svetlobni', title: 'Light microscope', caption: 'Total magnification = eyepiece × objective.', vb: [480, 460], ox: 20, art: LightMicroscopeArt,
     parts: [
-      { id: 'ok', label: 'okular', x: 150, y: 70, lx: 40, ly: 64 },
-      { id: 'tu', label: 'tubus', x: 150, y: 170, lx: 40, ly: 150 },
-      { id: 're', label: 'revolver', x: 104, y: 244, lx: 30, ly: 200 },
-      { id: 'ob', label: 'objektiv', x: 150, y: 285, lx: 30, ly: 262 },
-      { id: 'pm', label: 'predmetna mizica', x: 80, y: 337, lx: 40, ly: 322 },
-      { id: 'pr', label: 'preparat', x: 186, y: 326, lx: 200, ly: 300 },
-      { id: 'st', label: 'stativ', x: 276, y: 230, lx: 400, ly: 196 },
-      { id: 'mak', label: 'makrometrski vijak', x: 274, y: 300, lx: 400, ly: 286 },
-      { id: 'mik', label: 'mikrometrski vijak', x: 276, y: 350, lx: 400, ly: 340 },
-      { id: 'vs', label: 'vir svetlobe', x: 150, y: 392, lx: 40, ly: 400 },
-      { id: 'no', label: 'noga', x: 200, y: 428, lx: 400, ly: 440 },
+      { id: 'ok', label: 'eyepiece', x: 150, y: 70, lx: 40, ly: 64 },
+      { id: 'tu', label: 'tube', x: 150, y: 170, lx: 40, ly: 150 },
+      { id: 're', label: 'revolving nosepiece', x: 104, y: 244, lx: 30, ly: 200 },
+      { id: 'ob', label: 'objective', x: 150, y: 285, lx: 30, ly: 262 },
+      { id: 'pm', label: 'stage', x: 80, y: 337, lx: 40, ly: 322 },
+      { id: 'pr', label: 'slide', x: 186, y: 326, lx: 200, ly: 300 },
+      { id: 'st', label: 'arm', x: 276, y: 230, lx: 400, ly: 196 },
+      { id: 'mak', label: 'coarse focus knob', x: 274, y: 300, lx: 400, ly: 286 },
+      { id: 'mik', label: 'fine focus knob', x: 276, y: 350, lx: 400, ly: 340 },
+      { id: 'vs', label: 'light source', x: 150, y: 392, lx: 40, ly: 400 },
+      { id: 'no', label: 'base', x: 200, y: 428, lx: 400, ly: 440 },
     ],
   },
   tem: {
-    id: 'tem', title: 'Transmisijski elektronski mikroskop (TEM)', caption: 'Elektroni prodirajo skozi preparat.', vb: [480, 460], ox: 90, art: TEMArt,
+    id: 'tem', title: 'Transmission electron microscope (TEM)', caption: 'Electrons pass through the specimen.', vb: [480, 460], ox: 90, art: TEMArt,
     parts: [
-      { id: 'ep', label: 'elektronska puška', x: 150, y: 64, lx: 300, ly: 36 },
-      { id: 'lk', label: 'leče kondenzorja', x: 113, y: 120, lx: 10, ly: 96 },
-      { id: 'vz', label: 'vzorec', x: 172, y: 173, lx: 300, ly: 160 },
-      { id: 'lo', label: 'leče objektiva', x: 187, y: 214, lx: 300, ly: 214 },
-      { id: 'vc', label: 'vakuumska črpalka', x: 52, y: 250, lx: 10, ly: 300 },
-      { id: 'lp', label: 'leče projektorja', x: 187, y: 292, lx: 300, ly: 280 },
-      { id: 'ok', label: 'okular', x: 254, y: 355, lx: 300, ly: 400 },
-      { id: 'za', label: 'zaslon ali kamera', x: 150, y: 411, lx: 60, ly: 448 },
+      { id: 'ep', label: 'electron gun', x: 150, y: 64, lx: 300, ly: 36 },
+      { id: 'lk', label: 'condenser lenses', x: 113, y: 120, lx: 10, ly: 96 },
+      { id: 'vz', label: 'specimen', x: 172, y: 173, lx: 300, ly: 160 },
+      { id: 'lo', label: 'objective lenses', x: 187, y: 214, lx: 300, ly: 214 },
+      { id: 'vc', label: 'vacuum pump', x: 52, y: 250, lx: 10, ly: 300 },
+      { id: 'lp', label: 'projector lenses', x: 187, y: 292, lx: 300, ly: 280 },
+      { id: 'ok', label: 'eyepiece', x: 254, y: 355, lx: 300, ly: 400 },
+      { id: 'za', label: 'screen or camera', x: 150, y: 411, lx: 60, ly: 448 },
     ],
   },
   migetalke: {
-    id: 'migetalke', title: 'Migetalke in bički', caption: 'Iz mikrotubulov, zasidrani v membrani.', vb: [480, 240], art: CiliaArt,
+    id: 'migetalke', title: 'Cilia and flagella', caption: 'Made of microtubules, anchored in the membrane.', vb: [480, 240], art: CiliaArt,
     parts: [
-      { id: 'mg', label: 'migetalke', x: 154, y: 100, lx: 60, ly: 30 },
-      { id: 'bi', label: 'biček', x: 404, y: 60, lx: 450, ly: 120 },
-      { id: 'cm', label: 'celična membrana', x: 250, y: 196, lx: 120, ly: 228 },
+      { id: 'mg', label: 'cilia', x: 154, y: 100, lx: 60, ly: 30 },
+      { id: 'bi', label: 'flagellum', x: 404, y: 60, lx: 450, ly: 120 },
+      { id: 'cm', label: 'cell membrane', x: 250, y: 196, lx: 120, ly: 228 },
     ],
   },
   stena: {
-    id: 'stena', title: 'Celična stena', caption: 'Več plasti celuloze zunaj celične membrane.', vb: [480, 240], art: WallArt,
+    id: 'stena', title: 'Cell wall', caption: 'Several layers of cellulose outside the cell membrane.', vb: [480, 240], art: WallArt,
     parts: [
-      { id: 'cs', label: 'celična stena (celuloza)', x: 240, y: 104, lx: 240, ly: 30 },
-      { id: 'cm', label: 'celična membrana', x: 120, y: 153, lx: 120, ly: 200 },
-      { id: 'ct', label: 'citoplazma', x: 360, y: 200, lx: 380, ly: 226 },
+      { id: 'cs', label: 'cell wall (cellulose)', x: 240, y: 104, lx: 240, ly: 30 },
+      { id: 'cm', label: 'cell membrane', x: 120, y: 153, lx: 120, ly: 200 },
+      { id: 'ct', label: 'cytoplasm', x: 360, y: 200, lx: 380, ly: 226 },
     ],
   },
-  lizosom: { id: 'lizosom', title: 'Lizosom', caption: 'Prebavni encimi za razgradnjo snovi.', vb: [480, 260], art: LysoArt, parts: [{ id: 'en', label: 'prebavni encimi', x: 240, y: 130, lx: 400, ly: 40 }, { id: 'mb', label: 'membrana', x: 316, y: 78, lx: 400, ly: 230 }] },
-  vakuola: { id: 'vakuola', title: 'Vakuola v rastlinski celici', caption: 'Ena velika: voda, snovi, opora.', vb: [480, 280], art: VacuoleArt, parts: [{ id: 'vk', label: 'vakuola', x: 240, y: 140, lx: 240, ly: 274 }] },
-  centrioli: { id: 'centrioli', title: 'Centrioli', caption: 'V bližini jedra, sodelujejo pri delitvi.', vb: [480, 260], art: CentriolesArt, parts: [{ id: 'pr', label: 'prečni prerez', x: 150, y: 130, lx: 150, ly: 246 }, { id: 'vz', label: 'vzdolžni prerez', x: 330, y: 130, lx: 330, ly: 246 }] },
+  lizosom: { id: 'lizosom', title: 'Lysosome', caption: 'Digestive enzymes that break down substances.', vb: [480, 260], art: LysoArt, parts: [{ id: 'en', label: 'digestive enzymes', x: 240, y: 130, lx: 400, ly: 40 }, { id: 'mb', label: 'membrane', x: 316, y: 78, lx: 400, ly: 230 }] },
+  vakuola: { id: 'vakuola', title: 'Vacuole in a plant cell', caption: 'One large vacuole: water, substances, support.', vb: [480, 280], art: VacuoleArt, parts: [{ id: 'vk', label: 'vacuole', x: 240, y: 140, lx: 240, ly: 274 }] },
+  centrioli: { id: 'centrioli', title: 'Centrioles', caption: 'Near the nucleus, take part in cell division.', vb: [480, 260], art: CentriolesArt, parts: [{ id: 'pr', label: 'cross section', x: 150, y: 130, lx: 150, ly: 246 }, { id: 'vz', label: 'longitudinal section', x: 330, y: 130, lx: 330, ly: 246 }] },
 }
 
 export interface DetailViewProps {
   id: DetailId
   mode?: 'study' | 'pins' | 'clean'
-  placed?: Record<string, string | undefined> // partId -> label besedilo
+  placed?: Record<string, string | undefined> // partId -> label text
   status?: Record<string, 'good' | 'bad' | undefined>
   active?: string | null
   onPin?: (partId: string) => void
@@ -478,7 +478,7 @@ export const DetailView = memo(function DetailView({ id, mode = 'study', placed,
   const [W, H] = d.vb
   const ox = d.ox ?? 0
   const k = W / 480
-  // razlaga se odvije, ko pride v pogled: slika se pojavi, nato se oznake zaporedoma narišejo
+  // the explanation unfolds when it comes into view: the picture appears, then the labels are drawn one after another
   const ref = useRef<SVGSVGElement>(null)
   const seen = useInView(ref, { once: true, margin: '0px 0px -12% 0px' })
   return (

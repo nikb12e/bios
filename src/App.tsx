@@ -25,14 +25,14 @@ export type Tab = 'danes' | 'celica' | 'vaje' | 'napredek'
 export interface Nav {
   tab: (t: Tab) => void
   start: (opts: SessionOpts, title: string, items?: Item[]) => void
-  /** nadaljuje nedokončano sejo, shranjeno na tej napravi */
+  /** continues an unfinished session saved on this device */
   resume: (s: SavedSession) => void
   oral: (topic?: string) => void
   lesson: (topic: string | null) => void
   arena: (code?: string) => void
-  /** odpre celico v 3D z animirano razlago procesa */
+  /** opens the cell in 3D with an animated explanation of a process */
   process: (id: ProcId) => void
-  /** odpre celico in poudari organel */
+  /** opens the cell and highlights an organelle */
   cell: (org: OrgId) => void
 }
 
@@ -47,10 +47,10 @@ function CellIcon({ size = 22 }: { size?: number }) {
 }
 
 const TABS: { id: Tab; label: string; icon: (s: number) => React.ReactNode }[] = [
-  { id: 'danes', label: 'Učenje', icon: s => <GraduationCap size={s} strokeWidth={1.9} /> },
-  { id: 'celica', label: 'Celica', icon: s => <CellIcon size={s} /> },
-  { id: 'vaje', label: 'Vaje', icon: s => <Dumbbell size={s} strokeWidth={1.9} /> },
-  { id: 'napredek', label: 'Napredek', icon: s => <ChartNoAxesColumn size={s} strokeWidth={1.9} /> },
+  { id: 'danes', label: 'Learn', icon: s => <GraduationCap size={s} strokeWidth={1.9} /> },
+  { id: 'celica', label: 'Cell', icon: s => <CellIcon size={s} /> },
+  { id: 'vaje', label: 'Practice', icon: s => <Dumbbell size={s} strokeWidth={1.9} /> },
+  { id: 'napredek', label: 'Progress', icon: s => <ChartNoAxesColumn size={s} strokeWidth={1.9} /> },
 ]
 const ORDER = TABS.map(t => t.id)
 
@@ -68,14 +68,14 @@ export default function App() {
   )
 }
 
-// temen dok: limetni mehurček teče do izbranega zavihka (sprednji rob prehiti, zadnji dohiti)
+// dark dock: a lime bubble flows to the selected tab (the front edge leads, the back edge catches up)
 function TabBar({ tab, go }: { tab: Tab; go: (t: Tab) => void }) {
   const i = ORDER.indexOf(tab)
   const { start, size, squash } = useLiquid(i, 25)
   const left = useTransform(start, v => `${v}%`)
   const width = useTransform(size, v => `${v}%`)
   return (
-    <nav className="tabbar" aria-label="Glavni meni">
+    <nav className="tabbar" aria-label="Main menu">
       <div className="rail"><motion.span className="liq" style={{ left, width, scaleY: squash }} /></div>
       {TABS.map(t => (
         <button key={t.id} className={tab === t.id ? 'on' : ''} onClick={() => go(t.id)} aria-current={tab === t.id ? 'page' : undefined}>
@@ -120,7 +120,7 @@ function Shell() {
   const [oralOpen, setOralOpen] = useState<{ topic?: string } | null>(null)
   const [lessonTopic, setLessonTopic] = useState<TopicId | null>(null)
   const [cellReq, setCellReq] = useState<CellReq | null>(null)
-  // povezava ?arena=KODA odpre sobo neposredno
+  // the link ?arena=CODE opens a room directly
   const [arena, setArena] = useState<{ code?: string } | null>(() => {
     const c = new URLSearchParams(location.search).get('arena')
     if (!c) return null
@@ -132,7 +132,7 @@ function Shell() {
     setTabRaw(prev => { if (prev !== t) scrolls.current[prev] = window.scrollY; return t })
   }, [])
 
-  // vsak zavihek si zapomni, kje si bil (kot iOS)
+  // every tab remembers where you were (like iOS)
   useLayoutEffect(() => {
     history.replaceState(null, '', '#' + tab)
     window.scrollTo({ top: scrolls.current[tab] ?? 0 })
@@ -148,7 +148,7 @@ function Shell() {
     process: useCallback((id: ProcId) => { setLessonTopic(null); setCellReq({ proc: id, k: Date.now() }); setTab('celica') }, [setTab]),
     cell: useCallback((org: OrgId) => { setLessonTopic(null); setCellReq({ org, k: Date.now() }); setTab('celica') }, [setTab]),
   }
-  // obvestilo (npr. dobrodošlica) se po nekaj sekundah samo umakne
+  // a notice (e.g. a welcome) goes away by itself after a few seconds
   useEffect(() => {
     if (!note) return
     const tm = setTimeout(clearNote, 6500)
@@ -165,26 +165,26 @@ function Shell() {
   return (
     <div className={`app ${wide ? 'is-wide' : ''}`}>
       {wide && (
-        <aside className="side glass" aria-label="Glavni meni">
+        <aside className="side glass" aria-label="Main menu">
           <div className="brand"><img src="/icon.svg" alt="" width={30} height={30} /><span>Bios</span></div>
           <SideNav tab={tab} go={go} />
           <div className="grow" />
-          <button className="side-quick" onClick={() => setArena({})}><Swords size={17} /> Arena v živo</button>
-          <button className="side-quick" onClick={() => setOralOpen({})}><Sparkles size={17} /> Ustno spraševanje</button>
+          <button className="side-quick" onClick={() => setArena({})}><Swords size={17} /> Live Arena</button>
+          <button className="side-quick" onClick={() => setOralOpen({})}><Sparkles size={17} /> Oral exam</button>
           <button className="side-user" onClick={() => go('napredek')}>
             <Avatar name={user!.name} src={user!.picture} size={36} />
             <span className="grow" style={{ minWidth: 0, textAlign: 'left' }}>
               <span className="hl" style={{ display: 'block', fontSize: 15, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user!.name}</span>
-              <span className="cap" style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{offline ? 'Brez povezave' : user!.email}</span>
+              <span className="cap" style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{offline ? 'Offline' : user!.email}</span>
             </span>
           </button>
         </aside>
       )}
 
-      {/* zavihki se zamenjajo takoj, z zelo kratkim prelivom (brez čakanja na izhod) */}
+      {/* tabs switch instantly, with a very short fade (no waiting for the exit) */}
       <motion.main key={tab} className="main" initial={{ opacity: 0, y: 14, scale: 0.99 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ type: 'spring', bounce: 0, duration: 0.42 }}>
         {tab === 'danes' && <Home nav={nav} />}
-        {tab === 'celica' && <Suspense fallback={<div className="page"><div className="empty">Nalagam celico …</div></div>}><Explore nav={nav} req={cellReq} /></Suspense>}
+        {tab === 'celica' && <Suspense fallback={<div className="page"><div className="empty">Loading the cell …</div></div>}><Explore nav={nav} req={cellReq} /></Suspense>}
         {tab === 'vaje' && <Practice nav={nav} />}
         {tab === 'napredek' && <Progress nav={nav} />}
       </motion.main>
@@ -202,8 +202,8 @@ function Shell() {
       <AnimatePresence>
         {(note || offline) && (
           <motion.div className="toast glass row" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }} transition={spring} style={{ gap: 10, maxWidth: 'min(92vw, 520px)' }}>
-            {offline ? <><WifiOff size={16} /><span className="fn" style={{ color: 'var(--ink)' }}>Brez povezave. Napredek se shrani in uskladi pozneje.</span></> : <span className="fn" style={{ color: 'var(--ink)' }}>{note}</span>}
-            {note && <button className="iconbtn" style={{ width: 28, height: 28 }} onClick={clearNote} aria-label="Zapri"><X size={15} /></button>}
+            {offline ? <><WifiOff size={16} /><span className="fn" style={{ color: 'var(--ink)' }}>Offline. Progress is saved and synced later.</span></> : <span className="fn" style={{ color: 'var(--ink)' }}>{note}</span>}
+            {note && <button className="iconbtn" style={{ width: 28, height: 28 }} onClick={clearNote} aria-label="Close"><X size={15} /></button>}
           </motion.div>
         )}
       </AnimatePresence>

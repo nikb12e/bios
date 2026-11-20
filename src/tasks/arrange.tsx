@@ -8,12 +8,12 @@ import { sound } from '../ui/kit'
 
 type T<K extends Task['t']> = Extract<Task, { t: K }>
 
-/* ───────── Dopolni ───────── */
+/* ───────── Fill in ───────── */
 export function ClozeTask({ task, done, onAnswer }: TaskProps<T<'cloze'>>) {
   const segs = useMemo(() => task.text.split(/(\{[^}]+\})/).filter(Boolean), [task.text])
   const answers = useMemo(() => segs.filter(s => s.startsWith('{')).map(s => s.slice(1, -1)), [segs])
   const bank = useShuffled([...answers.map((a, i) => ({ id: 'a' + i, t: a })), ...(task.extra ?? []).map((e, i) => ({ id: 'e' + i, t: e }))], task.id)
-  const [fill, setFill] = useState<(string | null)[]>(() => answers.map(() => null)) // id žetona
+  const [fill, setFill] = useState<(string | null)[]>(() => answers.map(() => null)) // token id
   const [active, setActive] = useState(0)
   const [checked, setChecked] = useState(false)
   const tokText = (id: string | null) => bank.find(b => b.id === id)?.t ?? ''
@@ -40,7 +40,7 @@ export function ClozeTask({ task, done, onAnswer }: TaskProps<T<'cloze'>>) {
   let gi = -1
   return (
     <div>
-      <h2 className="q sm">Dopolni z ustreznimi pojmi.</h2>
+      <h2 className="q sm">Fill in the right terms.</h2>
       <div className="card cloze">
         {segs.map((s, i) => {
           if (!s.startsWith('{')) return <span key={i}>{s}</span>
@@ -62,7 +62,7 @@ export function ClozeTask({ task, done, onAnswer }: TaskProps<T<'cloze'>>) {
   )
 }
 
-/* ───────── Poveži pare ───────── */
+/* ───────── Match pairs ───────── */
 export function MatchTask({ task, done, onAnswer }: TaskProps<T<'match'>>) {
   const right = useShuffled(task.pairs.map((_, i) => i), task.id)
   const [sel, setSel] = useState<number | null>(null)
@@ -76,7 +76,7 @@ export function MatchTask({ task, done, onAnswer }: TaskProps<T<'match'>>) {
       setSolved(ns); setSel(null); sound('tap')
       if (ns.length === task.pairs.length) {
         const e = errs.current
-        onAnswer({ ok: e <= 1, grade: e === 0 ? 3 : e === 1 ? 2 : 1, title: e === 0 ? 'Vse pare brez napake' : `Povezano, napak: ${e}`, msg: undefined })
+        onAnswer({ ok: e <= 1, grade: e === 0 ? 3 : e === 1 ? 2 : 1, title: e === 0 ? 'All pairs without a mistake' : `Matched, mistakes: ${e}`, msg: undefined })
       }
     } else {
       errs.current++
@@ -100,12 +100,12 @@ export function MatchTask({ task, done, onAnswer }: TaskProps<T<'match'>>) {
           ))}
         </div>
       </div>
-      {!done && <div className="fn" style={{ marginTop: 14, textAlign: 'center' }}>Tapni levo, nato pripadajoče desno.</div>}
+      {!done && <div className="fn" style={{ marginTop: 14, textAlign: 'center' }}>Tap one on the left, then its match on the right.</div>}
     </div>
   )
 }
 
-/* ───────── Razvrsti v skupine ───────── */
+/* ───────── Sort into groups ───────── */
 export function SortTask({ task, done, onAnswer }: TaskProps<T<'sort'>>) {
   const items = useShuffled(task.items.map((it, i) => ({ i, t: it[0], bin: it[1] })), task.id)
   const [place, setPlace] = useState<Record<number, number>>({})
@@ -121,7 +121,7 @@ export function SortTask({ task, done, onAnswer }: TaskProps<T<'sort'>>) {
     setChecked(true)
     const right = items.filter(it => place[it.i] === it.bin).length
     const frac = right / items.length
-    onAnswer({ ok: frac === 1, grade: gradeFrac(frac), title: frac === 1 ? undefined : `Pravilno razvrščenih ${right} od ${items.length}`, msg: task.why })
+    onAnswer({ ok: frac === 1, grade: gradeFrac(frac), title: frac === 1 ? undefined : `Sorted correctly ${right} of ${items.length}`, msg: task.why })
   }
   const pool = items.filter(it => place[it.i] === undefined)
   const chip = (it: typeof items[number], inBin: boolean) => {
@@ -142,7 +142,7 @@ export function SortTask({ task, done, onAnswer }: TaskProps<T<'sort'>>) {
       <h2 className="q sm">{task.q}</h2>
       <div className="wrapchips" style={{ minHeight: 44, marginBottom: 16 }}>
         {pool.map(it => chip(it, false))}
-        {!pool.length && !checked && <span className="fn">Vse je razvrščeno. Preveri ali premakni.</span>}
+        {!pool.length && !checked && <span className="fn">Everything is sorted. Check or move.</span>}
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: `repeat(${task.bins.length}, 1fr)`, gap: 10 }}>
         {task.bins.map((b, k) => (
@@ -152,13 +152,13 @@ export function SortTask({ task, done, onAnswer }: TaskProps<T<'sort'>>) {
           </div>
         ))}
       </div>
-      {!done && <div className="fn" style={{ marginTop: 12, textAlign: 'center' }}>Povleci ali tapni pojem in nato skupino.</div>}
+      {!done && <div className="fn" style={{ marginTop: 12, textAlign: 'center' }}>Drag or tap a term, then a group.</div>}
       {!done && <CheckBtn disabled={pool.length > 0} onClick={check} />}
     </div>
   )
 }
 
-/* ───────── Vrstni red ───────── */
+/* ───────── Order ───────── */
 function OrdRow({ item, idx, status }: { item: string; idx: number; status?: 'good' | 'bad' }) {
   const ctl = useDragControls()
   return (
@@ -181,7 +181,7 @@ export function OrderTask({ task, done, onAnswer }: TaskProps<T<'order'>>) {
     setChecked(true)
     const right = list.filter((x, i) => x === task.items[i]).length
     const frac = right / list.length
-    onAnswer({ ok: frac === 1, grade: gradeFrac(frac), title: frac === 1 ? undefined : `Na pravem mestu ${right} od ${list.length}`, msg: task.why, answer: frac === 1 ? undefined : <ol style={{ margin: '4px 0 0', paddingLeft: 20 }}>{task.items.map(x => <li key={x}>{x}</li>)}</ol> })
+    onAnswer({ ok: frac === 1, grade: gradeFrac(frac), title: frac === 1 ? undefined : `In the right place ${right} of ${list.length}`, msg: task.why, answer: frac === 1 ? undefined : <ol style={{ margin: '4px 0 0', paddingLeft: 20 }}>{task.items.map(x => <li key={x}>{x}</li>)}</ol> })
   }
   return (
     <div>
@@ -189,22 +189,22 @@ export function OrderTask({ task, done, onAnswer }: TaskProps<T<'order'>>) {
       <Reorder.Group axis="y" values={list} onReorder={checked ? () => {} : setList} className="stack" style={{ gap: 9, listStyle: 'none', padding: 0, margin: 0 }}>
         {list.map((x, i) => <OrdRow key={x} item={x} idx={i} status={checked ? (x === task.items[i] ? 'good' : 'bad') : undefined} />)}
       </Reorder.Group>
-      {!done && <div className="fn" style={{ marginTop: 12, textAlign: 'center' }}>Primi ročico na desni in premikaj.</div>}
+      {!done && <div className="fn" style={{ marginTop: 12, textAlign: 'center' }}>Grab the handle on the right and move it.</div>}
       {!done && <CheckBtn onClick={check} />}
     </div>
   )
 }
 
-/* ───────── Primerjalna tabela: prokariontska proti evkariontski ───────── */
+/* ───────── Comparison table: prokaryotic versus eukaryotic ───────── */
 const PE_ROWS: [string, string, string][] = [
-  ['velikost', '0,5 do 8 µm', '10 do 100 µm'],
-  ['dedni zapis', 'ena krožna DNK, ni povezana z beljakovinami', 'številne linearne DNK, povezane s posebnimi beljakovinami'],
-  ['jedrni ovoj', 'ni prisoten', 'prisoten'],
-  ['jedro', 'ni prisotno', 'prisotno'],
-  ['delitev', 'brez delitvenega vretena (cepitev)', 'z delitvenim vretenom (mitoza, mejoza)'],
-  ['ribosomi', 'manjši', 'večji'],
-  ['ER, GA, mitohondriji', 'niso prisotni', 'prisotni'],
-  ['plastidi (kloroplasti)', 'niso prisotni', 'prisotni pri rastlinah'],
+  ['size', '0.5 to 8 µm', '10 to 100 µm'],
+  ['genetic material', 'one circular DNA, not bound to proteins', 'many linear DNAs bound to special proteins'],
+  ['nuclear envelope', 'not present', 'present'],
+  ['nucleus', 'not present', 'present'],
+  ['division', 'without a spindle (fission)', 'with a spindle (mitosis, meiosis)'],
+  ['ribosomes', 'smaller', 'larger'],
+  ['ER, Golgi, mitochondria', 'not present', 'present'],
+  ['plastids (chloroplasts)', 'not present', 'present in plants'],
 ]
 export function TableTask({ done, onAnswer }: TaskProps<T<'table'>>) {
   const [swap, setSwap] = useState<boolean[]>(() => {
@@ -217,13 +217,13 @@ export function TableTask({ done, onAnswer }: TaskProps<T<'table'>>) {
     setChecked(true)
     const right = swap.filter(x => !x).length
     const frac = right / PE_ROWS.length
-    onAnswer({ ok: frac === 1, grade: gradeFrac(frac), title: frac === 1 ? 'Tabela je pravilna' : `Pravilnih vrstic ${right} od ${PE_ROWS.length}`, msg: 'Vir: zapiski, stran 2.' })
+    onAnswer({ ok: frac === 1, grade: gradeFrac(frac), title: frac === 1 ? 'The table is correct' : `Correct rows ${right} of ${PE_ROWS.length}`, msg: 'Source: notes, page 2.' })
   }
   return (
     <div>
-      <h2 className="q sm">Vsako vrstico postavi prav: s puščicama zamenjaš stolpca.</h2>
+      <h2 className="q sm">Put every row right: the arrows swap the columns.</h2>
       <div className="row" style={{ margin: '0 2px 8px', gap: 6 }}>
-        <span className="over grow" style={{ textAlign: 'center' }}>Prokariontska</span><span style={{ width: 40 }} /><span className="over grow" style={{ textAlign: 'center' }}>Evkariontska</span>
+        <span className="over grow" style={{ textAlign: 'center' }}>Prokaryotic</span><span style={{ width: 40 }} /><span className="over grow" style={{ textAlign: 'center' }}>Eukaryotic</span>
       </div>
       <div className="stack" style={{ gap: 8 }}>
         {PE_ROWS.map(([k, a, b], i) => {
@@ -234,7 +234,7 @@ export function TableTask({ done, onAnswer }: TaskProps<T<'table'>>) {
               <div className="k">{k}</div>
               <div className="cells">
                 <motion.div layout className={`cell-btn ${st}`}>{l}</motion.div>
-                <button className="iconbtn" disabled={checked} style={{ background: 'var(--card-2)', width: 40, height: 40, alignSelf: 'center' }} onClick={() => { setSwap(s => s.map((x, j) => (j === i ? !x : x))); sound('tap') }} aria-label="Zamenjaj"><ArrowLeftRight size={16} /></button>
+                <button className="iconbtn" disabled={checked} style={{ background: 'var(--card-2)', width: 40, height: 40, alignSelf: 'center' }} onClick={() => { setSwap(s => s.map((x, j) => (j === i ? !x : x))); sound('tap') }} aria-label="Swap"><ArrowLeftRight size={16} /></button>
                 <motion.div layout className={`cell-btn ${st}`}>{r}</motion.div>
               </div>
             </div>

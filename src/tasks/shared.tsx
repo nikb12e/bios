@@ -7,9 +7,9 @@ import { useWide, Kbd } from '../ui/kit'
 export interface Result {
   ok: boolean
   grade: Grade
-  title?: string // npr. "Pravilno" ali "Skoraj"
-  msg?: ReactNode // razlaga
-  answer?: ReactNode // pravilen odgovor
+  title?: string // e.g. "Correct" or "Almost"
+  msg?: ReactNode // explanation
+  answer?: ReactNode // correct answer
 }
 
 export interface TaskProps<T extends Task = Task> {
@@ -18,14 +18,14 @@ export interface TaskProps<T extends Task = Task> {
   onAnswer: (r: Result) => void
 }
 
-// Gumb v spodnji stekleni vrstici seje (portal), da je akcija vedno na istem mestu.
+// Button in the session's bottom glass bar (portal), so the action is always in the same place.
 export function Foot({ children }: { children: ReactNode }) {
   const [el, setEl] = useState<HTMLElement | null>(null)
   useEffect(() => { setEl(document.getElementById('s-foot-slot')) }, [])
   return el ? createPortal(children, el) : null
 }
 
-export function CheckBtn({ disabled, onClick, label = 'Preveri' }: { disabled?: boolean; onClick: () => void; label?: string }) {
+export function CheckBtn({ disabled, onClick, label = 'Check' }: { disabled?: boolean; onClick: () => void; label?: string }) {
   const wide = useWide()
   return (
     <Foot>

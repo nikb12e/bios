@@ -5,8 +5,8 @@ import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeom
 import { partName, type PartId } from './Cells'
 import { buildProcess, type ProcId, type Proc, type Spots } from './process3d'
 
-/* Risani (cartoon) 3D model celice: ploske barve v treh tonih, črne obrobe (obrnjen ovoj),
-   izrez četrtine celice, da se vidi notranjost. Zgradba sledi zapiskom Celica.pdf. */
+/* Cartoon 3D model of the cell: flat colours in three tones, black outlines (inverted hull),
+   a quarter of the cell cut away so the inside is visible. The structure follows the cell notes. */
 
 export interface Cell3DProps {
   kind: 'animal' | 'plant' | 'prok'
@@ -15,12 +15,12 @@ export interface Cell3DProps {
   labels: boolean
   cut: boolean
   spin: boolean
-  /** animirana razlaga procesa: korak in samodejno nadaljevanje; n ob spremembi začne korak znova */
+  /** animated explanation of a process: step and automatic continuation; n restarts the step when it changes */
   proc?: { id: ProcId; step: number; auto: boolean; n: number } | null
   onStepDone?: () => void
-  /** višina plavajoče kartice spodaj (px), da je poudarjeni del nad njo */
+  /** height of the floating card at the bottom (px), so the highlighted part sits above it */
   padBottom?: number
-  /** širina plavajoče plošče desno (px, namizje) */
+  /** width of the floating panel on the right (px, desktop) */
   padRight?: number
 }
 
@@ -31,7 +31,7 @@ function rng(seed: number): Rand {
 }
 const css = (name: string, fb: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fb
 const PRIO: PartId[] = ['jedro', 'dnk', 'membrana', 'stena', 'kloroplast', 'vakuola', 'mitohondrij', 'zrnatiER', 'golgi', 'gladkiER', 'ribosomi', 'lizosom', 'jedrce', 'citoplazma', 'centrioli', 'migetalke', 'skrobna', 'citoskelet']
-// mesta oznake glede na točko: [smer (-1 nad, 1 pod), dvig v višinah oznake]
+// label positions relative to the point: [direction (-1 above, 1 below), lift in label heights]
 const OPTS: [number, number][] = [[-1, 0], [1, 0], [-1, 1], [1, 1], [-1, 2]]
 const mixHex = (a: string, b: string, k: number) => '#' + new THREE.Color(a).lerp(new THREE.Color(b), k).getHexString()
 
@@ -43,11 +43,11 @@ interface Built {
   geos: THREE.BufferGeometry[]
   cutMats: THREE.Material[]
   halves: { plane: THREE.Plane; pos: THREE.Vector3; axis: THREE.Vector3 }[]
-  /* kandidatne točke za oznako vsakega organela (izbere se tista, ki je vidna) */
+  /* candidate points for each organelle's label (the visible one is chosen) */
   cands: Map<PartId, THREE.Vector3[]>
-  /* oznake, ki sledijo pogledu (phiC = azimut kamere, atan2(z, x)) */
+  /* labels that follow the view (phiC = camera azimuth, atan2(z, x)) */
   dyn: Map<PartId, (phiC: number) => THREE.Vector3>
-  /* pri bakteriji: prerez vedno po dolgi osi (os x); cutN je smer proti gledalcu, pravokotna na os */
+  /* for the bacterium: the cut is always along the long axis (x axis); cutN points to the viewer, perpendicular to the axis */
   cutN?: THREE.Vector3
   spots: Spots
   tick: (t: number) => void
@@ -67,8 +67,8 @@ function wobbleSphere(r: number, seg: number, amp: number, seed: number) {
   return g
 }
 
-/* Cisterna zrnatega ER: tanka ukrivljena ploskev (del krogelne lupine okrog jedra) z debelino,
-   ki se na robovih zoži v ostrino, da je zaprta. Polarni kot a od zgoraj, azimut f = atan2(z, x). */
+/* A cisterna of the rough ER: a thin curved surface (part of a spherical shell around the nucleus) with a thickness
+   that tapers to a sharp edge at the rims so it is closed. Polar angle a from the top, azimuth f = atan2(z, x). */
 function erSheet(rho: number, a1: number, a2: number, f1: number, f2: number, h: number, wob: number) {
   const SU = 120, SV = 18
   const pos: number[] = []
@@ -91,7 +91,7 @@ function erSheet(rho: number, a1: number, a2: number, f1: number, f2: number, h:
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3))
   g.setIndex(idx)
   g.computeVertexNormals()
-  // normale morajo kazati navzven, sicer obroba (obrnjen ovoj) pade navznoter
+  // normals must point outwards, otherwise the outline (inverted hull) falls inwards
   const nAt = g.attributes.normal as THREE.BufferAttribute, pAt = g.attributes.position as THREE.BufferAttribute
   const q = (SU >> 1) * SV + (SV >> 2)
   const pv = new THREE.Vector3().fromBufferAttribute(pAt, q), nv = new THREE.Vector3().fromBufferAttribute(nAt, q)
@@ -143,7 +143,7 @@ function build(kind: 'animal' | 'plant' | 'prok', wedge: THREE.Plane[]): Built {
     if (clip === 'wedge') { m.clippingPlanes = wedge; m.clipIntersection = true; cutMats.push(m) } else if (clip) m.clippingPlanes = clip
     return reg(m)
   }
-  // telo + obroba
+  // body + outline
   const solid = (g: THREE.BufferGeometry, color: string, ink = 0.02, o: Partial<THREE.MeshToonMaterialParameters> = {}, clip?: THREE.Plane[] | 'wedge') => {
     const grp = new THREE.Group()
     grp.add(new THREE.Mesh(geo(g), toon(color, o, clip)))
@@ -172,14 +172,14 @@ function build(kind: 'animal' | 'plant' | 'prok', wedge: THREE.Plane[]): Built {
   const m2 = (a: string, b: string, k = 0.45) => mixHex(a, b, k)
   const tmp = new THREE.Object3D()
 
-  /* ───── prokariontska celica (bakterija, paličasta): celična stena, celična membrana,
-     citoplazma, ena krožna DNK brez beljakovin in brez jedrnega ovoja, manjši ribosomi.
-     Brez jedra, ER, GA, mitohondrijev in plastidov (zapiski, str. 2). ───── */
+  /* ───── prokaryotic cell (bacterium, rod shaped): cell wall, cell membrane,
+     cytoplasm, one circular DNA without proteins and without a nuclear envelope, smaller ribosomes.
+     No nucleus, ER, Golgi, mitochondria or plastids (notes, p. 2). ───── */
   if (kind === 'prok') {
     const L = 2.9, RW = 1.0, RWI = 0.93, RM = 0.885, RC = 0.86
     const cap = (r: number, seg = 64) => { const g = new THREE.CapsuleGeometry(r, L, 18, seg); g.rotateZ(Math.PI / 2); return g }
     const prokW = css('--o-prokw', '#8d97a3'), prokWF = css('--o-prokw-f', '#eceef2')
-    // stena: zunanja površina in notranja (vidi se kot debelejši rob v prerezu)
+    // wall: outer and inner surface (shows as a thicker edge in the cut)
     as('stena')
     const wg = cap(RW)
     const wall = new THREE.Group()
@@ -187,7 +187,7 @@ function build(kind: 'animal' | 'plant' | 'prok', wedge: THREE.Plane[]): Built {
     wall.add(new THREE.Mesh(wg, inkMat(0.03, 'wedge')))
     wall.add(new THREE.Mesh(geo(cap(RWI)), toon(m2(prokW, prokWF, 0.15), { side: THREE.BackSide }, 'wedge')))
     add('stena', wall, new THREE.Vector3(0, RW, 0))
-    // rob prereza: smer v ravnini prereza, pravokotna na os, obrnjena navzgor
+    // cut edge: direction in the cut plane, perpendicular to the axis, facing up
     const cutN = new THREE.Vector3(0, 0, 1)
     const rimUp = () => {
       const e = new THREE.Vector3(0, cutN.z, -cutN.y)
@@ -196,7 +196,7 @@ function build(kind: 'animal' | 'plant' | 'prok', wedge: THREE.Plane[]): Built {
     }
     const behind = (v: THREE.Vector3, d = 0.05) => v.sub(cutN.clone().multiplyScalar(d))
     dyn.set('stena', () => behind(rimUp().multiplyScalar(RW * 0.97).setX(-0.35)))
-    // membrana: tanka temna plast tik pod steno
+    // membrane: a thin dark layer just under the wall
     as('membrana')
     const mem = new THREE.Mesh(geo(cap(RM)), toon(P.mem, { side: THREE.BackSide }, 'wedge'))
     add('membrana', mem, new THREE.Vector3(0, -RM, 0))
@@ -209,8 +209,8 @@ function build(kind: 'animal' | 'plant' | 'prok', wedge: THREE.Plane[]): Built {
       const p0 = new THREE.Vector3(-1.75, 0, 0).add(rimUp().multiplyScalar(-0.42))
       return p0.sub(cutN.clone().multiplyScalar(cutN.dot(p0) + 0.06))
     })
-    // krožna DNK: en sklenjen, zvit obroč v nukleoidu (ni obdan z membrano). V prerezu ostane cela,
-    // da je vidno, da je ena sama krožna molekula.
+    // circular DNA: one closed, twisted ring in the nucleoid (not surrounded by a membrane). It stays whole in the cut,
+    // so it is visible that it is a single circular molecule.
     as('dnk')
     const ringN = new THREE.Vector3(0, Math.cos(0.5), Math.sin(0.5))
     const ringU = new THREE.Vector3(1, 0, 0), ringV = new THREE.Vector3().crossVectors(ringN, ringU)
@@ -225,7 +225,7 @@ function build(kind: 'animal' | 'plant' | 'prok', wedge: THREE.Plane[]): Built {
     add('dnk', dna)
     cands.set('dnk', dnaCurve.getSpacedPoints(48))
     anchors.set('dnk', dnaCurve.getPoint(0.1))
-    // ribosomi (manjši kot pri evkariontih), po vsej citoplazmi, redkejši v nukleoidu
+    // ribosomes (smaller than in eukaryotes), throughout the cytoplasm, sparser in the nucleoid
     as('ribosomi')
     const rpts: THREE.Vector3[] = []
     const inside = (v: THREE.Vector3) => { const cx = Math.max(-L / 2, Math.min(L / 2, v.x)); return Math.hypot(v.x - cx, v.y, v.z) < RC - 0.07 }
@@ -241,12 +241,12 @@ function build(kind: 'animal' | 'plant' | 'prok', wedge: THREE.Plane[]): Built {
     add('ribosomi', rib)
     cands.set('ribosomi', rpts.filter((_, i) => i % 9 === 0))
     anchors.set('ribosomi', rpts[0])
-    // počasno »dihanje« DNK (videz žive celice)
+    // slow “breathing” of the DNA (the look of a living cell)
     ticks.push(t => { dna.rotation.x = Math.sin(t * 0.35) * 0.04; dna.rotation.y = Math.sin(t * 0.27) * 0.03 })
     return { root, orgs, anchors, mats, geos, cutMats, halves: [], cands, dyn, cutN, spots, tick: t => ticks.forEach(f => f(t)) }
   }
 
-  /* ───── ovoj celice: membrana (in stena pri rastlini) ───── */
+  /* ───── the cell's envelope: membrane (and the wall in plants) ───── */
   if (kind === 'animal') {
     as('membrana')
     const mg = wobbleSphere(3.2, 96, 0.045, 1.7)
@@ -275,7 +275,7 @@ function build(kind: 'animal' | 'plant' | 'prok', wedge: THREE.Plane[]): Built {
     add('citoplazma', cyto, new THREE.Vector3(-2.3, -1.75, 1.6))
   }
 
-  /* ───── jedro: dvojni jedrni ovoj s porami, kromatin, jedrce ───── */
+  /* ───── nucleus: double nuclear envelope with pores, chromatin, nucleolus ───── */
   as('jedro')
   const nPos = kind === 'animal' ? new THREE.Vector3(0.12, 0.2, 0.12) : new THREE.Vector3(2.05, 0.75, 0.85)
   const nR = kind === 'animal' ? 1.02 : 0.82
@@ -308,13 +308,13 @@ function build(kind: 'animal' | 'plant' | 'prok', wedge: THREE.Plane[]): Built {
   ncl.position.copy(nPos).add(kind === 'animal' ? new THREE.Vector3(0.28, 0.12, 0.3) : new THREE.Vector3(0.2, 0.16, 0.22))
   add('jedrce', ncl, ncl.position.clone().add(new THREE.Vector3(0.05, 0.42, 0.2)))
 
-  /* ───── zrnati ER: vzporedne sploščene cisterne, ki obdajajo jedro (navzven od jedrnega ovoja),
-     posute z ribosomi. Prerez jih preseka kot jedro, zato se v izrezu vidijo vzporedni loki. ───── */
+  /* ───── rough ER: parallel flattened cisternae around the nucleus (outwards from the nuclear envelope),
+     studded with ribosomes. The cut slices them like the nucleus, so parallel arcs show in the cut away part. ───── */
   as('zrnatiER')
   const er = new THREE.Group()
   const erPts: THREE.Vector3[] = []
   const erCol = m2(P.zer, '#ffffff', 0.28)
-  // animalska: vrzel pri Golgijevem aparatu (azimut ~0.45); rastlinska: brez strani proti steni (+x) in mimo vakuole
+  // animal: a gap at the Golgi apparatus (azimuth ~0.45); plant: none on the side towards the wall (+x) and past the vacuole
   const sheets = kind === 'animal'
     ? [{ rho: 1.25, a1: 0.45, a2: 2.05 }, { rho: 1.4, a1: 0.5, a2: 2.0 }, { rho: 1.55, a1: 0.56, a2: 1.94 }].map(o => ({ ...o, f1: 1.07, f2: 6.1 }))
     : [{ rho: 1.0, a1: 1.0, a2: 2.25 }, { rho: 1.14, a1: 1.05, a2: 2.2 }].map(o => ({ ...o, f1: 1.25, f2: 5.05 }))
@@ -343,7 +343,7 @@ function build(kind: 'animal' | 'plant' | 'prok', wedge: THREE.Plane[]): Built {
     })
   }
 
-  /* ───── gladki ER: razvejane cevke ───── */
+  /* ───── smooth ER: branching tubes ───── */
   as('gladkiER')
   const ger = new THREE.Group()
   const gerBase = kind === 'animal' ? new THREE.Vector3(0.75, -1.45, 0.55) : new THREE.Vector3(2.2, -0.6, -0.6)
@@ -354,13 +354,13 @@ function build(kind: 'animal' | 'plant' | 'prok', wedge: THREE.Plane[]): Built {
     let p = gerBase.clone().add(new THREE.Vector3((R() - 0.5) * 0.4, (R() - 0.5) * 0.3, (R() - 0.5) * 0.4))
     for (let j = 0; j < 5; j++) { pts.push(p.clone()); dir = dir.add(new THREE.Vector3((R() - 0.5) * 0.8, (R() - 0.5) * 0.5, (R() - 0.5) * 0.8)).normalize(); p = p.add(dir.clone().multiplyScalar(0.28)) }
     ger.add(solid(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 40, 0.07, 10, false), gerCol, 0.016))
-    // cevke so zaprte: zaobljena konca
+    // the tubes are closed: rounded ends
     for (const e of [pts[0], pts[pts.length - 1]]) { const cap = solid(new THREE.SphereGeometry(0.07, 14, 10), gerCol, 0.016); cap.position.copy(e); ger.add(cap) }
   }
   add('gladkiER', ger, gerBase.clone().add(new THREE.Vector3(0.25, -0.5, 0.45)))
 
-  /* ───── Golgijev aparat: kup 5 ukrivljenih sploščenih cistern (cis stran proti ER in jedru,
-     trans stran proti membrani) in mehurčki, ki se odcepljajo z robov ───── */
+  /* ───── Golgi apparatus: a stack of 5 curved flattened cisternae (cis side towards the ER and nucleus,
+     trans side towards the membrane) and vesicles budding from the rims ───── */
   as('golgi')
   const gPos = kind === 'animal' ? new THREE.Vector3(1.62, -0.58, 0.86) : new THREE.Vector3(-0.55, -1.35, 1.25)
   const gAxis = (kind === 'animal' ? gPos.clone().sub(nPos) : new THREE.Vector3(0, -0.55, 0.84)).normalize()
@@ -372,7 +372,7 @@ function build(kind: 'animal' | 'plant' | 'prok', wedge: THREE.Plane[]): Built {
     const pa = g.attributes.position as THREE.BufferAttribute
     for (let i = 0; i < pa.count; i++) {
       const x = pa.getX(i) * ax, z = pa.getZ(i) * az
-      // rahlo odebeljeni robovi (razširjeni konci cistern) in upogib v skledo
+      // slightly thickened rims (widened ends of the cisternae) and a bend into a bowl
       const rim = Math.min(1, Math.hypot(pa.getX(i), pa.getZ(i)))
       const y = pa.getY(i) * 0.045 * (1 + 0.5 * rim ** 6) + bend * (x * x + 0.55 * z * z)
       pa.setXYZ(i, x, y, z)
@@ -396,7 +396,7 @@ function build(kind: 'animal' | 'plant' | 'prok', wedge: THREE.Plane[]): Built {
   const vesicles: { o: THREE.Object3D; a: THREE.Vector3; b: THREE.Vector3; ph: number; travel: boolean }[] = []
   for (let k = 0; k < 9; k++) {
     const vo = solid(vesG.clone(), gCol, 0.014)
-    // mehurčki ob robovih trans strani in nad njo
+    // vesicles along the rims of the trans side and above it
     const side = k % 2 ? 1 : -1, lvl = 2 + (k % 3)
     const loc = k < 6
       ? new THREE.Vector3(side * (0.72 - lvl * 0.045 + 0.1 + R() * 0.06), lvl * 0.14 + 0.3, (R() - 0.5) * 0.5)
@@ -414,13 +414,13 @@ function build(kind: 'animal' | 'plant' | 'prok', wedge: THREE.Plane[]): Built {
     else ve.o.position.set(ve.a.x + Math.sin(t * 0.7 + ve.ph * 6) * 0.04, ve.a.y + Math.cos(t * 0.6 + ve.ph * 6) * 0.04, ve.a.z)
   }))
 
-  /* ───── mitohondriji: prerez po dolgem ───── */
+  /* ───── mitochondria: lengthwise cut ───── */
   as('mitohondrij')
   const mSpots = kind === 'animal'
     ? [[-1.95, 1.3, 0.95], [-0.2, -1.7, 1.75], [-1.55, -1.55, 0.2], [0.85, 2.05, -1.0], [-0.6, -1.95, -1.2], [2.25, 0.45, 0.6]]
     : [[0.5, 1.75, 1.25], [1.9, -1.6, 0.2], [-0.45, -1.75, 1.4], [2.6, 1.5, -1.2]]
   const halves: Built['halves'] = []
-  // prerez po dolgem, ki se vedno obrne proti gledalcu (posodablja se ob vrtenju)
+  // a lengthwise cut that always turns towards the viewer (updated while rotating)
   const halfCut = (g: THREE.Object3D, axis: THREE.Vector3) => {
     const plane = new THREE.Plane(new THREE.Vector3(0, 0, -1), 0)
     halves.push({ plane, pos: g.position.clone(), axis: axis.clone() })
@@ -453,7 +453,7 @@ function build(kind: 'animal' | 'plant' | 'prok', wedge: THREE.Plane[]): Built {
   })
 
   if (kind === 'plant') {
-    /* ───── kloroplasti: prerez z granumi ───── */
+    /* ───── chloroplasts: cut with grana ───── */
     as('kloroplast')
     const kSpots: [number, number, number][] = [[-0.95, 1.8, 1.3], [1.5, 1.85, 0.4], [2.6, -0.95, 1.55], [2.75, -0.75, -1.0], [1.2, -1.85, 1.4], [-1.35, -1.85, -0.9], [-2.75, -0.45, 1.25], [0.2, 1.85, -1.5], [-0.15, -1.85, 0.25], [2.75, 1.4, -0.6]]
     kSpots.forEach((p, k) => {
@@ -477,7 +477,7 @@ function build(kind: 'animal' | 'plant' | 'prok', wedge: THREE.Plane[]): Built {
       add('kloroplast', g, k === 0 ? new THREE.Vector3(p[0], p[1] + 0.45, p[2] + 0.3) : undefined)
       spots.kloro.push(g.position.clone())
     })
-    /* ───── velika osrednja vakuola ───── */
+    /* ───── large central vacuole ───── */
     as('vakuola')
     const vg = wobbleSphere(1.0, 64, 0.06, 3)
     const vac = new THREE.Group()
@@ -488,7 +488,7 @@ function build(kind: 'animal' | 'plant' | 'prok', wedge: THREE.Plane[]): Built {
     vac.position.set(-0.35, -0.05, -0.25)
     add('vakuola', vac, new THREE.Vector3(-0.2, 0.2, 1.2))
     spots.vac = vac
-    /* ───── škrobna zrna ───── */
+    /* ───── starch grains ───── */
     as('skrobna')
     ;[[-2.65, 1.65, -0.6], [1.9, -1.8, -0.95], [-0.9, 1.75, -1.45]].forEach((p, k) => {
       const s = solid(new THREE.SphereGeometry(0.17, 22, 16), m2(P.skrob, P.skrobF, 0.4), 0.014)
@@ -505,14 +505,14 @@ function build(kind: 'animal' | 'plant' | 'prok', wedge: THREE.Plane[]): Built {
       add('lizosom', s, k === 0 ? new THREE.Vector3(p[0], p[1] + 0.38, p[2] + 0.2) : undefined)
       spots.lizo.push(s)
     })
-    /* ───── manjše vakuole ───── */
+    /* ───── smaller vacuoles ───── */
     as('vakuola')
     ;[[-2.25, 0.6, 1.25], [0.2, -2.25, 1.35]].forEach((p, k) => {
       const s = solid(new THREE.SphereGeometry(0.28, 26, 18), m2(P.vak, P.vakF, 0.55), 0.016)
       s.position.set(p[0], p[1], p[2])
       add('vakuola', s, k === 0 ? new THREE.Vector3(p[0] - 0.1, p[1] + 0.42, p[2] + 0.2) : undefined)
     })
-    /* ───── centrioli: dva pravokotna valja iz 9 trojčkov mikrotubulov ───── */
+    /* ───── centrioles: two perpendicular cylinders of 9 microtubule triplets ───── */
     as('centrioli')
     const cPos = new THREE.Vector3(-0.85, -1.3, 1.05)
     const cm = toon(m2(P.centri, '#ffffff', 0.15))
@@ -552,7 +552,7 @@ function build(kind: 'animal' | 'plant' | 'prok', wedge: THREE.Plane[]): Built {
       cilia.push(pivot)
       add('migetalke', pivot, n.clone().multiplyScalar(3.62))
     }
-    // v razlagi utripajo močneje in v valu (metahronalno): faza sledi legi okrog celice
+    // in the explanation they beat harder and in a wave (metachronal): the phase follows the position around the cell
     let cph = 0, lastT = 0
     ticks.push(t => {
       const dt = Math.min(0.1, Math.max(0, t - lastT)); lastT = t
@@ -575,12 +575,12 @@ function build(kind: 'animal' | 'plant' | 'prok', wedge: THREE.Plane[]): Built {
   const ribo = new THREE.InstancedMesh(rG, toon(P.ribo, {}, 'wedge'), free.length)
   free.forEach((p, i) => { tmp.position.copy(p); tmp.rotation.set(0, 0, 0); tmp.scale.setScalar(1.25); tmp.updateMatrix(); ribo.setMatrixAt(i, tmp.matrix) })
   add('ribosomi', ribo, kind === 'animal' ? new THREE.Vector3(-1.25, 2.05, 1.35) : new THREE.Vector3(-1.6, -1.55, 1.6))
-  // ribosomi na zrnatem ER: prerežejo se skupaj z ER
+  // ribosomes on the rough ER: cut together with the ER
   const riboER = new THREE.InstancedMesh(rG, toon(P.ribo, {}, 'wedge'), erPts.length)
   erPts.forEach((p, i) => { tmp.position.copy(p); tmp.rotation.set(0, 0, 0); tmp.scale.setScalar(0.85); tmp.updateMatrix(); riboER.setMatrixAt(i, tmp.matrix) })
   add('ribosomi', riboER)
 
-  /* ───── celično ogrodje ───── */
+  /* ───── cytoskeleton ───── */
   as('citoskelet')
   const cs = new THREE.Group()
   const csM = toon(m2(P.cito, '#ffffff', 0.35))
@@ -669,7 +669,7 @@ export default function Cell3D({ kind, focus, onPick, labels, cut, spin, proc = 
     let focusId: PartId | null = null
     let showLabels = labels
     let cutOn = cut
-    // poudarjeni deli: v razlagi procesa deli trenutnega koraka, sicer izbrani organel
+    // highlighted parts: in a process explanation the parts of the current step, otherwise the selected organelle
     let procHi: PartId[] | null = null
     let procLab: Partial<Record<PartId, () => THREE.Vector3>> | null = null
     let procTarget: THREE.Vector3 | null = null
@@ -679,7 +679,7 @@ export default function Cell3D({ kind, focus, onPick, labels, cut, spin, proc = 
       const hi = hiList()
       built.mats.forEach((ms, id) => ms.forEach(m => {
         const b = m.userData.base as { o: number; t: boolean; d: boolean }
-        // citoplazma je ozadje izreza (notranja stena celice): nikoli se ne zatemni, sicer bi se videla temna obroba membrane
+        // the cytoplasm is the background of the cut (inner wall of the cell): it is never dimmed, otherwise the dark membrane outline would show
         const dim = !!hi && !hi.includes(id) && id !== 'citoplazma'
         m.transparent = dim ? true : b.t
         m.opacity = dim ? (id === 'membrana' || id === 'stena' ? 0.07 : 0.14) : b.o
@@ -697,12 +697,12 @@ export default function Cell3D({ kind, focus, onPick, labels, cut, spin, proc = 
     setCut(cut)
     applyFocus()
 
-    /* ───── animirana razlaga procesa ───── */
+    /* ───── animated explanation of a process ───── */
     let P: Proc | null = null
     let pid: ProcId | null = null
     let pStep = 0, pT = 0, pA = 0, pDone = false, pAuto = true
     let pad = init.current.padBottom, padR = init.current.padRight
-    // premik kamere: točka pogleda in lega se zvezno prelijeta (tudi če uporabnik vmes vrti)
+    // camera move: the focus point and position blend smoothly (even if the user rotates in between)
     let tw: { t: number; fT: THREE.Vector3; fP: THREE.Vector3; tT: THREE.Vector3; tP: THREE.Vector3 } | null = null
     const homeDist = () => {
       const w = el.clientWidth || 1, h = el.clientHeight || 1
@@ -728,7 +728,7 @@ export default function Cell3D({ kind, focus, onPick, labels, cut, spin, proc = 
       controls.enabled = false
     }
     const autoDir = (p: THREE.Vector3) => {
-      // kamera malo zamaknjena od smeri točke: točka leži tik ob ploskvi prereza in je vidna v izrezu
+      // the camera is offset a little from the point's direction: the point lies right by the cut surface and is visible in the cut
       if (Math.hypot(p.x, p.z) < 0.45) return new THREE.Vector3(0.55, 0.42, 0.72).normalize()
       const az = Math.atan2(p.x, p.z) + 0.82
       return new THREE.Vector3(Math.sin(az) * 0.9, 0.44, Math.cos(az) * 0.9).normalize()
@@ -781,7 +781,7 @@ export default function Cell3D({ kind, focus, onPick, labels, cut, spin, proc = 
     let down: { x: number; y: number } | null = null
     const pickables: THREE.Object3D[] = []
     built.orgs.forEach((objs, id) => { if (id !== 'citoplazma') objs.forEach(o => pickables.push(o)) })
-    // drobni deli (ribosomi, vlakna, migetalke) ne zakrivajo oznak
+    // tiny parts (ribosomes, fibres, cilia) do not cover the labels
     const occluders = pickables.filter(o => !['ribosomi', 'citoskelet', 'migetalke'].includes(o.userData.org))
     const clipOk = (h: THREE.Intersection) => {
       const mat = (h.object as THREE.Mesh).material as THREE.Material
@@ -852,7 +852,7 @@ export default function Cell3D({ kind, focus, onPick, labels, cut, spin, proc = 
         tw.t = Math.min(1, tw.t + dt / (reduce ? 0.01 : 1.15))
         const e = tw.t < 0.5 ? 4 * tw.t ** 3 : 1 - (-2 * tw.t + 2) ** 3 / 2
         controls.target.lerpVectors(tw.fT, tw.tT, e)
-        // lega po loku okrog točke pogleda (ne skozi celico)
+        // position along an arc around the focus point (not through the cell)
         const a = tw.fP.clone().sub(tw.fT), b = tw.tP.clone().sub(tw.tT)
         const la = a.length(), lb = b.length()
         const dir = a.normalize().lerp(b.normalize(), e).normalize()
@@ -860,7 +860,7 @@ export default function Cell3D({ kind, focus, onPick, labels, cut, spin, proc = 
         if (tw.t >= 1) { tw = null; controls.enabled = true }
       }
       if (P) {
-        // animacija teče ves čas; ura za samodejni naslednji korak le, ko predvajanje ni ustavljeno
+        // the animation always runs; the clock for the automatic next step only when playback is not paused
         pT += dt
         if (pAuto) pA += dt
         P.update(pStep, pT)
@@ -869,10 +869,10 @@ export default function Cell3D({ kind, focus, onPick, labels, cut, spin, proc = 
       controls.update()
       q.copy(lightDir).applyQuaternion(camera.quaternion)
       key.position.copy(q).multiplyScalar(10)
-      // izrez četrtine je vedno obrnjen proti gledalcu
+      // the cut away quarter always faces the viewer
       const az = Math.atan2(camera.position.x, camera.position.z)
       if (built.cutN) {
-        // bakterija: prerez vedno po dolgi osi, sprednja polovica odstranjena (tudi ko gledamo s konca)
+        // bacterium: the cut is always along the long axis, front half removed (even when viewed from the end)
         built.cutN.set(0, camera.position.y, camera.position.z).normalize()
         wedge[0].normal.copy(built.cutN).negate(); wedge[1].normal.copy(built.cutN).negate()
       } else {
@@ -889,7 +889,7 @@ export default function Cell3D({ kind, focus, onPick, labels, cut, spin, proc = 
       renderer.render(scene, camera)
       if (showLabels || focusId || procHi) {
         const w = el.clientWidth, h = el.clientHeight
-        // vsakih nekaj sličic: za vsak organel izberi vidno točko (ni zakrita z drugim organelom)
+        // every few frames: for each organelle pick a visible point (not hidden by another organelle)
         if (frame++ % 6 === 0) {
           const phiC = Math.atan2(camera.position.z, camera.position.x)
           camDir.copy(camera.position).normalize()
@@ -898,7 +898,7 @@ export default function Cell3D({ kind, focus, onPick, labels, cut, spin, proc = 
             const list = built.dyn.has(id) ? [built.dyn.get(id)!(phiC)] : [...(built.cands.get(id) ?? [])].filter(p => !(cutOn && wedge.every(w => w.distanceToPoint(p) < 0))).sort((a, b) => b.dot(camDir) - a.dot(camDir)).slice(0, 4)
             if (id === focusId && !procHi) { chosen.set(id, list[0] ?? null); return }
             if (procHi && isHi(id)) {
-              // v razlagi: oznaka na delu, ki je najbližje dogajanju
+              // in an explanation: the label on the part closest to the action
               const tg = procTarget
               const near = built.dyn.has(id) || !tg ? list : [...(built.cands.get(id) ?? [])].filter(p => !(cutOn && wedge.every(w => w.distanceToPoint(p) < 0))).sort((a, b) => a.distanceTo(tg) - b.distanceTo(tg)).slice(0, 4)
               chosen.set(id, near.find(p => !hidden(id, p)) ?? near[0] ?? null); return
@@ -906,7 +906,7 @@ export default function Cell3D({ kind, focus, onPick, labels, cut, spin, proc = 
             chosen.set(id, list.find(p => !(cutOn && wedge.every(w => w.distanceToPoint(p) < 0)) && !hidden(id, p)) ?? null)
           })
         }
-        // razporeditev brez prekrivanja: od spodaj navzgor, oznaka se po potrebi dvigne nad svojo točko
+        // layout without overlap: from the bottom up, a label rises above its point if needed
         const items: { id: PartId; d: HTMLDivElement; x: number; y: number; bw: number; bh: number }[] = []
         labelEls.forEach((d, id) => {
           const p = procLab?.[id]?.() ?? chosen.get(id)
@@ -918,13 +918,13 @@ export default function Cell3D({ kind, focus, onPick, labels, cut, spin, proc = 
           if (!sz || !sz.w) { sz = { w: d.offsetWidth, h: d.offsetHeight }; sizes.set(id, sz) }
           items.push({ id, d, x: ((v.x + 1) / 2) * w, y: ((1 - v.y) / 2) * h, bw: sz.w, bh: sz.h })
         })
-        // pomembnejši organeli dobijo prostor prvi; na majhnem zaslonu se manj pomembne oznake skrijejo
+        // more important organelles get space first; on a small screen less important labels are hidden
         items.sort((a, b) => (isHi(a.id) === isHi(b.id) ? PRIO.indexOf(a.id) - PRIO.indexOf(b.id) : isHi(a.id) ? -1 : 1))
         const placed: [number, number, number, number][] = []
-        // plavajoče kontrole (orodja, naslov, izbira) so prepovedano območje za oznake
+        // floating controls (tools, title, choice) are a no go zone for labels
         const box = el.getBoundingClientRect()
         el.parentElement?.querySelectorAll('.c3d-ctl, .ex-top > *, .tabbar, .proc-card').forEach(c => { const a = c.getBoundingClientRect(); if (a.width) placed.push([a.left - box.left - 4, a.top - box.top - 4, a.right - box.left + 4, a.bottom - box.top + 4]) })
-        // nad naslovom ni prostora za oznake (oznaka bi se zlila z robom zaslona)
+        // there is no room for labels above the title (a label would merge with the screen edge)
         const ttl = el.parentElement?.querySelector('.ex-top')?.getBoundingClientRect()
         if (ttl) placed.push([0, -100, w, ttl.top - box.top + 4])
         const tb = document.querySelector('.tabbar')
@@ -943,7 +943,7 @@ export default function Cell3D({ kind, focus, onPick, labels, cut, spin, proc = 
           if (!best && isHi(it.id)) best = { x0: Math.min(Math.max(it.x - it.bw / 2, 4), w - it.bw - 4), y0: it.y - 9 - it.bh, dir: -1, lift: 0 }
           if (!best) { it.d.style.visibility = 'hidden'; continue }
           placed.push([best.x0, best.y0, best.x0 + it.bw, best.y0 + it.bh])
-          // točka na organelu: majhen krog pod ali nad oznako
+          // point on the organelle: a small circle below or above the label
           placed.push([it.x - 5, it.y - 5, it.x + 5, it.y + 5])
           it.d.style.visibility = ''
           it.d.classList.toggle('down', best.dir > 0)

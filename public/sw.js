@@ -1,5 +1,5 @@
-// Bios service worker: hitri zagon in delovanje brez povezave za statične dele.
-const V = 'bios-v6-1'
+// Bios service worker: fast start and offline use for the static parts.
+const V = 'bios-oss-en-2'
 self.addEventListener('install', e => { self.skipWaiting(); e.waitUntil(caches.open(V).then(c => c.addAll(['/', '/icon.svg', '/manifest.webmanifest']))) })
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== V).map(k => caches.delete(k)))).then(() => self.clients.claim())) })
 self.addEventListener('fetch', e => {

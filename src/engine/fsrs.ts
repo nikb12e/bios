@@ -1,4 +1,4 @@
-// FSRS 5 (privzete uteži). Spomin vsakega pojma: stabilnost S (dni) in težavnost D (1 do 10).
+// FSRS 5 (default weights). Memory of every concept: stability S (days) and difficulty D (1 to 10).
 
 const W = [0.40255, 1.18385, 3.173, 15.69105, 7.1949, 0.5345, 1.4604, 0.0046, 1.54575, 0.1192, 1.01925, 1.9395, 0.11, 0.29605, 2.2698, 0.2315, 2.9898, 0.51655, 0.6621]
 const DECAY = -0.5
@@ -17,7 +17,7 @@ export interface Mem {
   lapses: number
   seen: number
   ok: number
-  hist: number[] // zadnji rezultati 0/1
+  hist: number[] // latest results 0/1
 }
 
 const clamp = (x: number, a: number, b: number) => Math.min(b, Math.max(a, x))
@@ -51,7 +51,7 @@ export function review(prev: Mem | undefined, g: Grade, now = Date.now()): Mem {
   const R = retrievability(prev, now)
   let S: number
   if (elapsed < 0.5) {
-    // isti dan: kratkoročna posodobitev
+    // same day: short term update
     S = prev.S * Math.exp(W[17] * (g - 3 + W[18]))
   } else if (g === 1) {
     S = Math.min(prev.S, W[11] * Math.pow(prev.D, -W[12]) * (Math.pow(prev.S + 1, W[13]) - 1) * Math.exp(W[14] * (1 - R)))
@@ -68,7 +68,7 @@ export function review(prev: Mem | undefined, g: Grade, now = Date.now()): Mem {
   }
 }
 
-// Kratka okrepitev po popravku v isti seji (ne spreminja dolgoročnega razporeda).
+// A short boost after a fix in the same session (does not change the long term schedule).
 export function reinforce(m: Mem | undefined, ok: boolean): Mem | undefined {
   if (!m) return m
   return { ...m, hist: [...m.hist, ok ? 1 : 0].slice(-10) }
@@ -81,9 +81,9 @@ export function level(m?: Mem): Level {
   if (m.S < 21) return 'utrjujem'
   return 'obvladam'
 }
-export const LEVEL_NAME: Record<Level, string> = { nov: 'Nov', ucim: 'Učim se', utrjujem: 'Utrjujem', obvladam: 'Obvladam' }
+export const LEVEL_NAME: Record<Level, string> = { nov: 'New', ucim: 'Learning', utrjujem: 'Strengthening', obvladam: 'Mastered' }
 
-// Ocena znanja 0..1 za prikaz (stabilnost in trenutni priklic).
+// Knowledge estimate 0..1 for display (stability and current recall).
 export function mastery(m?: Mem, now = Date.now()): number {
   if (!m || !m.reps) return 0
   const R = retrievability(m, now)

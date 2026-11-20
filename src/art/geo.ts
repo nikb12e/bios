@@ -1,4 +1,4 @@
-// Geometrija za ročno narisane celice: gladke organske oblike iz točk.
+// Geometry for hand drawn cells: smooth organic shapes from points.
 
 export type P = [number, number]
 
@@ -15,7 +15,7 @@ export function rng(seed: number) {
 
 const f = (n: number) => Math.round(n * 10) / 10
 
-// Zaprta gladka krivulja skozi točke (Catmull Rom v Bezier).
+// A closed smooth curve through points (Catmull Rom to Bezier).
 export function smoothClosed(pts: P[], k = 1): string {
   const n = pts.length
   let d = `M${f(pts[0][0])},${f(pts[0][1])}`
@@ -40,7 +40,7 @@ export function smoothOpen(pts: P[], k = 1): string {
   return d
 }
 
-// Točka na "mehurju": elipsa z rahlim valovanjem.
+// A point on a "bubble": an ellipse with a slight wave.
 export function blobPoint(cx: number, cy: number, rx: number, ry: number, a: number, wob: number[] = [], phase = 0): P {
   let r = 1
   wob.forEach((w, i) => { r += w * Math.sin((i + 2) * a + phase * (i + 1)) })
@@ -53,21 +53,21 @@ export function blob(cx: number, cy: number, rx: number, ry: number, wob: number
   return smoothClosed(pts)
 }
 
-// Kapsula (mitohondrij, bakterija) dolžine w, debeline h, centrirana v 0,0.
+// A capsule (mitochondrion, bacterium) of length w and thickness h, centred at 0,0.
 export function capsule(w: number, h: number): string {
   const r = h / 2, x = w / 2 - r
   return `M${-x},${-r}H${x}A${r},${r} 0 0 1 ${x},${r}H${-x}A${r},${r} 0 0 1 ${-x},${-r}Z`
 }
 
-// Notranja nagubana membrana mitohondrija: ena zaprta pot s prstastimi gubami (kriste).
+// Inner folded membrane of the mitochondrion: one closed path with finger like folds (cristae).
 export function cristae(w: number, h: number, folds: number, depth = 0.62): string {
   const r = h / 2, xL = -w / 2 + r, xR = w / 2 - r
   const x0 = -w / 2 + r * 0.95, x1 = w / 2 - r * 0.95
   const step = (x1 - x0) / folds
-  const fw = Math.min(step * 0.42, h * 0.16) // debelina gube
+  const fw = Math.min(step * 0.42, h * 0.16) // fold thickness
   const reach = h * depth
   let d = `M${f(xL)},${f(-r)}`
-  // zgornji rob: gube navzdol pri sodih indeksih
+  // top edge: folds downwards at even indexes
   for (let i = 0; i < folds; i++) {
     if (i % 2) continue
     const xm = x0 + step * (i + 0.5)
@@ -75,7 +75,7 @@ export function cristae(w: number, h: number, folds: number, depth = 0.62): stri
     d += `L${f(xm - fw / 2 - 4)},${f(-r)}Q${f(xm - fw / 2)},${f(-r)} ${f(xm - fw / 2)},${f(-r + 4)}L${f(xm - fw / 2)},${f(tip - fw / 2)}A${f(fw / 2)},${f(fw / 2)} 0 0 0 ${f(xm + fw / 2)},${f(tip - fw / 2)}L${f(xm + fw / 2)},${f(-r + 4)}Q${f(xm + fw / 2)},${f(-r)} ${f(xm + fw / 2 + 4)},${f(-r)}`
   }
   d += `L${f(xR)},${f(-r)}A${f(r)},${f(r)} 0 0 1 ${f(xR)},${f(r)}`
-  // spodnji rob od desne proti levi: gube navzgor pri lihih indeksih
+  // bottom edge from right to left: folds upwards at odd indexes
   for (let i = folds - 1; i >= 0; i--) {
     if (!(i % 2)) continue
     const xm = x0 + step * (i + 0.5)
@@ -104,7 +104,7 @@ export function pointsOnArc(cx: number, cy: number, r: number, a0: number, a1: n
   return out
 }
 
-// Vijugasta nit (kromatin, DNK).
+// A wavy thread (chromatin, DNA).
 export function squiggle(seed: number, cx: number, cy: number, rad: number, n = 9): string {
   const R = rng(seed)
   const pts: P[] = []

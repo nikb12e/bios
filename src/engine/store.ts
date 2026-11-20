@@ -10,25 +10,25 @@ export interface TestResult { at: number; pct: number; grade: number; n: number;
 export interface State {
   v: 2
   mem: Record<string, Mem>
-  seenTask: Record<string, number> // id naloge -> zadnji čas
+  seenTask: Record<string, number> // task id -> last time
   types: Partial<Record<TaskType, { n: number; ok: number }>>
   days: Record<string, DayStat>
   tests: TestResult[]
-  ai: Task[] // shranjene AI naloge
+  ai: Task[] // saved AI tasks
   settings: Settings
-  learned: Record<string, number> // pojem -> kdaj prvič predstavljen
-  /** zvezek napak: naloga -> kolikokrat napačno, kdaj nazadnje, kdaj popravljena */
+  learned: Record<string, number> // concept -> when it was first introduced
+  /** mistake notebook: task -> how many times wrong, when last, when fixed */
   misses?: Record<string, Miss>
   arena?: { games: number; hist: { at: number; place: number; of: number; pts: number; correct: number; n: number; dr: number }[] }
   updated: number
 }
 
-// Napredek je vezan na račun. Open source različica nima strežnika, zato je kopija samo v tem brskalniku.
+// Progress is tied to an account. The open source version has no server, so the only copy is in this browser.
 const LOCAL_ONLY = true
 const LEGACY = 'bios:v2'
 let KEY: string | null = null
 
-const fresh = (name = 'Učenec'): State => ({
+const fresh = (name = 'Learner'): State => ({
   v: 2, mem: {}, seenTask: {}, types: {}, days: {}, tests: [], ai: [], learned: {},
   settings: { sound: true, ai: true, name, newPerSession: 5 }, updated: 0,
 })
@@ -40,7 +40,7 @@ function load(key: string): State | null {
       const s = JSON.parse(raw) as State
       if (s && s.v === 2) return { ...fresh(), ...s, settings: { ...fresh().settings, ...s.settings } }
     }
-  } catch { /* zasebni način ali poln pomnilnik */ }
+  } catch { /* private mode or full storage */ }
   return null
 }
 
@@ -54,11 +54,11 @@ export const setUnauthorizedHandler = (f: () => void) => { onUnauthorized = f }
 
 function emit() { subs.forEach(f => f()) }
 
-// vsak odgovor se takoj zapiše v napravo, v oblak pa najkasneje 1,2 s po zadnji spremembi
+// every answer is written to the device immediately, and to the cloud at most 1.2 s after the last change
 function persist() {
   if (!KEY) return
   clearTimeout(saveT)
-  try { localStorage.setItem(KEY, JSON.stringify(state)) } catch { /* zasebni način ali poln pomnilnik */ }
+  try { localStorage.setItem(KEY, JSON.stringify(state)) } catch { /* private mode or full storage */ }
   dirty = true
   clearTimeout(syncT)
   syncT = setTimeout(() => { void pushRemote() }, 1200)
@@ -81,7 +81,7 @@ export const dayKey = (t = Date.now()) => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
-// Zapiše odgovor: FSRS samo ob prvem srečanju pojma v seji (firstInSession), sicer kratka okrepitev.
+// Records an answer: FSRS only on the first encounter of the concept in a session (firstInSession), otherwise a short boost.
 export function record(opts: { task: Task; concepts: string[]; grade: Grade; ms: number; firstInSession: Set<string>; xp?: number }) {
   const { task, concepts, grade, ms, firstInSession } = opts
   const ok = grade >= 2
@@ -98,11 +98,11 @@ export function record(opts: { task: Task; concepts: string[]; grade: Grade; ms:
     const k = dayKey()
     const d = s.days[k] ?? { n: 0, ok: 0, xp: 0, ms: 0 }
     const ty = s.types[task.t] ?? { n: 0, ok: 0 }
-    // zvezek napak: napačen odgovor zapiše nalogo, pravilen odgovor na zapisano nalogo jo označi kot popravljeno
+    // mistake notebook: a wrong answer records the task, a correct answer to a recorded task marks it as fixed
     let misses = s.misses
     const prev = misses?.[task.id]
     const track = !task.id.startsWith('oral:')
-    if (!track) { /* ustno spraševanje ima svoj pregled */ }
+    if (!track) { /* the oral exam has its own review */ }
     else if (!ok) misses = trimMisses({ ...misses, [task.id]: { n: (prev?.n ?? 0) + 1, at: Date.now() } })
     else if (prev && !prev.fixed) misses = { ...misses, [task.id]: { ...prev, fixed: Date.now() } }
     return {
@@ -117,7 +117,7 @@ export function record(opts: { task: Task; concepts: string[]; grade: Grade; ms:
 function trimMisses(m: Record<string, Miss>): Record<string, Miss> {
   const ks = Object.keys(m)
   if (ks.length <= 240) return m
-  // najprej odstrani najstarejše popravljene, nato najstarejše
+  // first remove the oldest fixed ones, then the oldest
   const order = ks.sort((a, b) => (m[a].fixed ? 0 : 1) - (m[b].fixed ? 0 : 1) || m[a].at - m[b].at)
   const out = { ...m }
   order.slice(0, ks.length - 240).forEach(k => delete out[k])
@@ -151,7 +151,7 @@ export function streak(s: State): number {
   return n
 }
 
-/* ───────── napredek na računu (Cloudflare D1) ───────── */
+/* ───────── progress on the account (Cloudflare D1) ───────── */
 
 const payload = () => { const { ai, ...rest } = state; return JSON.stringify({ ...rest, ai: ai.slice(-60) }) }
 
@@ -164,7 +164,7 @@ export async function pushRemote(keepalive = false) {
     const r = await fetch('/api/progress', { method: 'PUT', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body, keepalive: keepalive && body.length < 60000 })
     if (r.status === 401) { onUnauthorized(); return }
     if (!r.ok) dirty = true
-  } catch { dirty = true /* brez povezave: poskusi znova ob naslednji spremembi ali vrnitvi */ }
+  } catch { dirty = true /* offline: try again on the next change or return */ }
 }
 
 export async function flushRemote() {
@@ -185,7 +185,7 @@ function merge(local: State, remote: State): State {
   for (const [k, v] of Object.entries(local.types) as [TaskType, { n: number; ok: number }][]) if (!types[k] || v.n > types[k]!.n) types[k] = v
   const tests = [...remote.tests, ...local.tests].filter((t, i, arr) => arr.findIndex(x => x.at === t.at) === i).sort((x, y) => x.at - y.at)
   const ai = [...remote.ai, ...local.ai].filter((t, i, arr) => arr.findIndex(x => x.id === t.id) === i).slice(-200)
-  // zvezek napak: za vsako nalogo novejši zapis
+  // mistake notebook: the newer record for every task
   const misses: Record<string, Miss> = { ...remote.misses }
   for (const [k, m] of Object.entries(local.misses ?? {})) {
     const r = misses[k]
@@ -220,13 +220,13 @@ export async function pullRemote(): Promise<'ok' | 'empty' | 'err'> {
     state = merge(state, { ...fresh(), ...remote, settings: { ...fresh().settings, ...remote.settings } })
     emit()
     try { localStorage.setItem(KEY, JSON.stringify(state)) } catch { /* ignore */ }
-    // če je imela naprava kaj novega, pošlji združeno stanje nazaj
+    // if the device had anything new, send the merged state back
     if (payload() !== before || state.updated > (j.updated ?? 0)) { dirty = true; void pushRemote() }
     return 'ok'
   } catch { return 'err' }
 }
 
-// Ob prijavi: naloži napredek tega uporabnika na napravi, prenesi star (brez računa) napredek, združi s strežnikom.
+// On sign in: load this user's progress on the device, move old (no account) progress over, merge with the server.
 export async function bindUser(user: { id: string; name: string }, o: { offline?: boolean } = {}) {
   KEY = 'bios:v2:' + user.id
   let s = load(KEY)
@@ -237,7 +237,7 @@ export async function bindUser(user: { id: string; name: string }, o: { offline?
       try { localStorage.removeItem(LEGACY) } catch { /* ignore */ }
     }
   }
-  const first = user.name.split(' ')[0] || 'Učenec'
+  const first = user.name.split(' ')[0] || 'Learner'
   state = s ?? fresh(first)
   if (!s) state = { ...state, settings: { ...state.settings, name: first } }
   emit()
@@ -253,7 +253,7 @@ export function unbindUser(wipe: boolean) {
   emit()
 }
 
-// ob vrnitvi v aplikacijo osveži, ob odhodu pošlji
+// refresh when returning to the app, send when leaving
 if (typeof document !== 'undefined') {
   document.addEventListener('visibilitychange', () => {
     if (!KEY) return
@@ -263,7 +263,7 @@ if (typeof document !== 'undefined') {
   window.addEventListener('online', () => { if (KEY) { dirty = true; void pushRemote() } })
 }
 
-/* ───────── nedokončana seja (samo ta naprava) ───────── */
+/* ───────── unfinished session (this device only) ───────── */
 
 export interface SavedSession { v: 1; at: number; opts: SessionOptsLite; title: string; items: unknown[]; i: number; log: unknown[]; startMem: Record<string, string> }
 export type SessionOptsLite = { mode: string; [k: string]: unknown }
@@ -280,7 +280,7 @@ export function loadSession(): SavedSession | null {
   if (!k) return null
   try {
     const s = JSON.parse(localStorage.getItem(k) ?? 'null') as SavedSession | null
-    // starejše od treh dni ni več smiselno nadaljevati
+    // older than three days is no longer worth continuing
     if (!s || s.v !== 1 || Date.now() - s.at > 3 * 86400000 || !Array.isArray(s.items) || s.i >= s.items.length) return null
     return s
   } catch { return null }

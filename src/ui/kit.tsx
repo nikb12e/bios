@@ -31,7 +31,7 @@ export function Sheet({ open, onClose, children, title, wide }: { open: boolean;
     document.body.style.overflow = 'hidden'
     return () => { window.removeEventListener('keydown', k); document.body.style.overflow = '' }
   }, [open, onClose])
-  // portal: list je vedno nad zavihki, tudi ko ga odpre pogled z lastnim slojem (transform ustvari nov kontekst zlaganja)
+  // portal: the sheet is always above the tabs, even when opened by a view with its own layer (transform creates a new stacking context)
   return createPortal(
     <AnimatePresence>
       {open && (
@@ -43,7 +43,7 @@ export function Sheet({ open, onClose, children, title, wide }: { open: boolean;
             <div className="grab" />
             <div className="stop">
               <div className="grow">{title}</div>
-              <button className="iconbtn fill" onClick={onClose} aria-label="Zapri"><X size={18} strokeWidth={2.4} /></button>
+              <button className="iconbtn fill" onClick={onClose} aria-label="Close"><X size={18} strokeWidth={2.4} /></button>
             </div>
             <div className="sbody" onPointerDown={e => e.stopPropagation()}>{children}</div>
           </motion.div>
@@ -66,7 +66,7 @@ export function Seg<T extends string>({ value, options, onChange }: { value: T; 
   )
 }
 
-/* zvok: majhna, mehka potrditev (WebAudio, brez datotek) */
+/* sound: a small, soft confirmation (WebAudio, no files) */
 let ac: AudioContext | undefined
 export function sound(kind: 'good' | 'bad' | 'tap' | 'done') {
   if (!get().settings.sound) return
@@ -84,7 +84,7 @@ export function sound(kind: 'good' | 'bad' | 'tap' | 'done') {
       o.connect(g).connect(ac!.destination)
       o.start(t + d); o.stop(t + d + 0.35)
     })
-  } catch { /* brez zvoka */ }
+  } catch { /* no sound */ }
   if (kind !== 'tap' && 'vibrate' in navigator) navigator.vibrate?.(kind === 'bad' ? [18, 40, 18] : 12)
 }
 
@@ -104,9 +104,9 @@ export const ORG_COLOR: Record<string, string> = {
   centrioli: 'var(--o-centri)', citoskelet: 'var(--o-cito-d)', migetalke: 'var(--o-mig)', stena: 'var(--o-stena)', skrobna: 'var(--o-skrob)', dnk: 'var(--o-jedro)',
 }
 
-/* ───────── odzivnost in gibanje ───────── */
+/* ───────── responsiveness and motion ───────── */
 
-// širok zaslon (računalnik): stranska navigacija, paneli ob strani
+// wide screen (computer): side navigation, panels at the side
 export function useWide(min = 1024) {
   const q = `(min-width: ${min}px)`
   const [w, setW] = useState(() => typeof window !== 'undefined' && window.matchMedia(q).matches)
@@ -119,7 +119,7 @@ export function useWide(min = 1024) {
   return w
 }
 
-// vsebina se pojavi, ko pride v pogled (zaporedno z zamikom)
+// content appears when it comes into view (one after another with a delay)
 export function Reveal({ children, i = 0, className, style, as = 'div' }: { children: ReactNode; i?: number; className?: string; style?: CSSProperties; as?: 'div' | 'section' }) {
   const C = as === 'section' ? motion.section : motion.div
   return (
@@ -130,7 +130,7 @@ export function Reveal({ children, i = 0, className, style, as = 'div' }: { chil
   )
 }
 
-// število, ki se prešteje do vrednosti
+// a number that counts up to its value
 export function CountUp({ to, suffix = '', duration = 0.9 }: { to: number; suffix?: string; duration?: number }) {
   const ref = useRef<HTMLSpanElement>(null)
   const from = useRef(0)
@@ -140,7 +140,7 @@ export function CountUp({ to, suffix = '', duration = 0.9 }: { to: number; suffi
     const el = ref.current
     if (!el) return
     if (reduce || !inView) { el.textContent = Math.round(to) + suffix; from.current = to; return }
-    // šteje od prejšnje vrednosti, ne od nič (točke v Areni rastejo sproti)
+    // counts from the previous value, not from zero (points in the Arena grow live)
     const c = animate(from.current, to, { duration, ease: [0.32, 0.72, 0, 1], onUpdate: v => { el.textContent = Math.round(v) + suffix; from.current = v } })
     return () => c.stop()
   }, [to, suffix, inView, reduce, duration])
@@ -159,7 +159,7 @@ export function Kbd({ children }: { children: ReactNode }) {
   return <kbd className="kbd">{children}</kbd>
 }
 
-/* ───────── iOS gradniki: velik naslov, skupinski seznami, stikalo ───────── */
+/* ───────── iOS building blocks: large title, grouped lists, switch ───────── */
 
 export function useScrolledPast(px = 40, el?: HTMLElement | null) {
   const [past, setPast] = useState(false)
@@ -176,7 +176,7 @@ export function useScrolledPast(px = 40, el?: HTMLElement | null) {
 
 export type Tone = 'lime' | 'green' | 'violet' | 'coral' | 'sky' | 'amber' | 'pink' | 'ink'
 
-// naslov, ki se ob prikazu »napne«: teža pisave zraste od tanke do polne
+// a title that “tightens” when shown: the font weight grows from thin to full
 export function Title({ children, className = 'lt', style }: { children: ReactNode; className?: string; style?: CSSProperties }) {
   return (
     <motion.h1 className={className} style={style} initial={{ fontWeight: 380, letterSpacing: '-0.01em', opacity: 0.4 }} animate={{ fontWeight: 790, letterSpacing: '-0.04em', opacity: 1 }}
@@ -184,7 +184,7 @@ export function Title({ children, className = 'lt', style }: { children: ReactNo
   )
 }
 
-// barvni pas na vrhu zaslona z živimi oblikami v ozadju
+// a coloured band at the top of the screen with living shapes in the background
 export function Band({ tone, kicker, title, sub, right, deco = ['cookie', 'flower'], children }: {
   tone: Tone; kicker?: ReactNode; title: ReactNode; sub?: ReactNode; right?: ReactNode; deco?: [ShapeKind, ShapeKind]; children?: ReactNode
 }) {
@@ -200,7 +200,7 @@ export function Band({ tone, kicker, title, sub, right, deco = ['cookie', 'flowe
   )
 }
 
-// Zaslon zavihka: barvni pas z velikim naslovom, ob pomikanju se pokaže kompaktna vrstica
+// Tab screen: a coloured band with a large title, a compact bar appears on scroll
 export function Screen({ title, kicker, right, children, wide, tone, sub, deco }: { title: string; kicker?: ReactNode; right?: ReactNode; children: ReactNode; wide?: boolean; tone?: Tone; sub?: ReactNode; deco?: [ShapeKind, ShapeKind] }) {
   const past = useScrolledPast(tone ? 120 : 44)
   return (
@@ -221,12 +221,12 @@ export function Screen({ title, kicker, right, children, wide, tone, sub, deco }
   )
 }
 
-// naslov razdelka
+// section title
 export function SH({ children, action }: { children: ReactNode; action?: ReactNode }) {
   return <div className="sh"><h2>{children}</h2>{action}</div>
 }
 
-// vrstica potisnega pogleda: nazaj levo, naslov se pokaže, ko velik naslov odide
+// push view bar: back on the left, the title appears when the large title leaves
 export function PushBar({ back, title, show, right }: { back: { label: string; onClick: () => void }; title: string; show: boolean; right?: ReactNode }) {
   return (
     <div className="navbar show">
@@ -273,7 +273,7 @@ export function Toggle({ on }: { on: boolean }) {
   )
 }
 
-/* vsak sklop ima svojo barvo in obliko */
+/* every section has its own colour and shape */
 export const TOPIC_LOOK: Record<string, { tone: Tone; shape: ShapeKind }> = {
   osnove: { tone: 'violet', shape: 'cookie' },
   teorija: { tone: 'amber', shape: 'gem' },

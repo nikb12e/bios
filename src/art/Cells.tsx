@@ -20,10 +20,10 @@ export interface CellProps {
   hideLabelsOf?: PartId[]
   className?: string
   title?: string
-  protein?: number // korak animacije poti beljakovine (0 = izklop)
+  protein?: number // animation step of the protein path (0 = off)
 }
 
-/* ───────────── pomožni deli ───────────── */
+/* ───────────── helper parts ───────────── */
 
 function Cisterna({ d, c, f, w = 11 }: { d: string; c: string; f: string; w?: number }) {
   return (
@@ -153,7 +153,7 @@ function Nucleus({ x, y, r, nx, ny, nr, seed, pores = [20, 80, 140, 200, 265, 32
   )
 }
 
-/* ───────────── živalska celica ───────────── */
+/* ───────────── animal cell ───────────── */
 
 const A = {
   W: 760, H: 560,
@@ -190,7 +190,7 @@ const animalGeom = (() => {
     const dx = p[0] - N.x, dy = p[1] - N.y, d = Math.hypot(dx, dy), a = (Math.atan2(dy, dx) * 180) / Math.PI
     return d < 170 && a > -120 && a < 32
   })(), [40, 40, 720, 520], 17)
-  // gruča prostih ribosomov (za oznako)
+  // a cluster of free ribosomes (for the label)
   const cluster: P[] = [[548, 470], [556, 476], [565, 471], [573, 477], [582, 472]]
   const cilia = [208, 216, 224, 232, 240, 248, 256].map(a => {
     const p = blobPoint(m.cx, m.cy, m.rx, m.ry, deg(a), m.wob, m.ph)
@@ -203,10 +203,10 @@ const animalGeom = (() => {
   const cyto = [10, 42, 100, 172, 300, 330].map(a => {
     const c: P = [230, 258]
     const e = blobPoint(m.cx, m.cy, m.rx * 0.95, m.ry * 0.94, deg(a + 0), m.wob, m.ph)
-    // usmerjeno iz centriolov proti robu
+    // pointing from the centrioles towards the edge
     const dir = Math.atan2(e[1] - c[1], e[0] - c[0])
     const end: P = [c[0] + Math.cos(dir) * 900, c[1] + Math.sin(dir) * 900]
-    // presek z elipso približno: skrajšaj na rob
+    // intersection with an ellipse, roughly: shorten to the edge
     let t = 0
     for (let k = 0; k < 200; k++) { const q: P = [c[0] + (end[0] - c[0]) * (k / 200), c[1] + (end[1] - c[1]) * (k / 200)]; if (!inside(q)) break; t = k / 200 }
     return [c, [c[0] + (end[0] - c[0]) * t, c[1] + (end[1] - c[1]) * t]] as [P, P]
@@ -214,7 +214,7 @@ const animalGeom = (() => {
   return { memD, er, erRibo, smooth, free, cluster, cilia, cyto }
 })()
 
-/* prokariontska celica: ena krožna DNK (zvit obroč v nukleoidu, brez ovoja), ribosomi okrog nje */
+/* prokaryotic cell: one circular DNA (a twisted ring in the nucleoid, with no envelope), ribosomes around it */
 const prokGeom = (() => {
   const W = 760, H = 420, cx = 390, cy = 212
   const at = (t: number): P => {
@@ -242,7 +242,7 @@ export const ANCHOR: Record<CellKind, Partial<Record<PartId, P>>> = {
   prok: { stena: [380, 86], membrana: [645, 146], citoplazma: [175, 265], dnk: prokGeom.dnaAt, ribosomi: prokGeom.riboAt },
 }
 
-const PART_NAME: Partial<Record<PartId, string>> = { dnk: 'Krožna DNK' }
+const PART_NAME: Partial<Record<PartId, string>> = { dnk: 'Circular DNA' }
 export const partName = (id: PartId) => PART_NAME[id] ?? ORG[id as OrgId]?.name ?? id
 
 function Group({ id, p, children }: { id: PartId; p: GroupCtx; children: ReactNode }) {
@@ -289,7 +289,7 @@ function Marker({ kind, id, tone }: { kind: CellKind; id?: PartId | null; tone: 
   )
 }
 
-/* ───────────── komponente ───────────── */
+/* ───────────── components ───────────── */
 
 export const AnimalCell = memo(function AnimalCell(props: CellProps) {
   const g = animalGeom
@@ -297,7 +297,7 @@ export const AnimalCell = memo(function AnimalCell(props: CellProps) {
   const ctx: GroupCtx = props
   return (
     <div className="cellwrap">
-    <svg viewBox={`0 0 ${A.W} ${A.H}`} className={`cell ${props.focus ? 'focus' : ''} ${props.className ?? ''}`} role="img" aria-label={props.title ?? 'Živalska celica'}>
+    <svg viewBox={`0 0 ${A.W} ${A.H}`} className={`cell ${props.focus ? 'focus' : ''} ${props.className ?? ''}`} role="img" aria-label={props.title ?? 'Animal cell'}>
       <Group id="citoplazma" p={ctx}>
         <path d={g.memD} fill="var(--o-cyto)" />
       </Group>
@@ -364,14 +364,14 @@ export const AnimalCell = memo(function AnimalCell(props: CellProps) {
   )
 })
 
-// Pot beljakovine za izločanje (animacija v razlagi): jedro, zrnati ER, mehurček, GA, mehurček, membrana.
+// The path of a protein for secretion (animation in the explanation): nucleus, rough ER, vesicle, Golgi, vesicle, membrane.
 export const PROTEIN_STEPS: { p: P; t: string; org: OrgId }[] = [
-  { p: [318, 292], t: 'DNK v jedru nosi dedni zapis za beljakovino.', org: 'jedro' },
-  { p: [400, 214], t: 'Ribosomi na zrnatem ER sintetizirajo beljakovino, ki jo bo celica izločila.', org: 'zrnatiER' },
-  { p: [480, 196], t: 'Beljakovina v mehurčku potuje do Golgijevega aparata.', org: 'golgi' },
-  { p: [598, 215], t: 'Golgijev aparat pripravi produkt, ki ga celica izloča.', org: 'golgi' },
-  { p: [672, 168], t: 'Od cistern se odcepi mehurček (vezikel) s to snovjo.', org: 'golgi' },
-  { p: [700, 150], t: 'Mehurček se zlije s celično membrano in celica snov izloči.', org: 'membrana' },
+  { p: [318, 292], t: 'DNA in the nucleus carries the genetic code for the protein.', org: 'jedro' },
+  { p: [400, 214], t: 'Ribosomes on the rough ER synthesise the protein the cell will secrete.', org: 'zrnatiER' },
+  { p: [480, 196], t: 'The protein travels in a vesicle to the Golgi apparatus.', org: 'golgi' },
+  { p: [598, 215], t: 'The Golgi apparatus prepares the product the cell secretes.', org: 'golgi' },
+  { p: [672, 168], t: 'A vesicle carrying the substance buds off the cisternae.', org: 'golgi' },
+  { p: [700, 150], t: 'The vesicle fuses with the cell membrane and the cell secretes the substance.', org: 'membrana' },
 ]
 
 function ProteinPath({ step }: { step: number }) {
@@ -386,7 +386,7 @@ function ProteinPath({ step }: { step: number }) {
   )
 }
 
-/* ───────────── rastlinska celica ───────────── */
+/* ───────────── plant cell ───────────── */
 
 const plantGeom = (() => {
   const W = 760, H = 560
@@ -409,11 +409,11 @@ const plantGeom = (() => {
     erRibo.push(...pointsOnArc(N.x, N.y, e.r - 7, e.a0 + 4, e.a1 - 4, n - 1))
   })
   const smooth: P[][] = [[[78, 420], [104, 410], [132, 422], [152, 412]], [[86, 450], [116, 442], [146, 452]], [[104, 410], [110, 428], [116, 442]]]
-  // celulozna vlakna v steni
+  // cellulose fibres in the wall
   const fibers: string[] = []
   for (let i = 0; i < 46; i++) {
     const t = i / 46
-    // obod pravokotnika
+    // rectangle outline
     const per = 2 * (712 + 512)
     let s = t * per, x = 0, y = 0
     if (s < 712) { x = 24 + s; y = 34 } else if ((s -= 712) < 512) { x = 726; y = 24 + s } else if ((s -= 512) < 712) { x = 736 - s; y = 526 } else { s -= 712; x = 34; y = 536 - s }
@@ -428,7 +428,7 @@ export const PlantCell = memo(function PlantCell(props: CellProps) {
   const N = g.N
   return (
     <div className="cellwrap">
-    <svg viewBox={`0 0 ${g.W} ${g.H}`} className={`cell ${props.focus ? 'focus' : ''} ${props.className ?? ''}`} role="img" aria-label={props.title ?? 'Rastlinska celica'}>
+    <svg viewBox={`0 0 ${g.W} ${g.H}`} className={`cell ${props.focus ? 'focus' : ''} ${props.className ?? ''}`} role="img" aria-label={props.title ?? 'Plant cell'}>
       <Group id="stena" p={ctx}>
         <rect x={20} y={20} width={720} height={520} rx={48} fill="var(--o-stena-f)" stroke="var(--o-stena)" strokeWidth={3} />
         <rect x={34} y={34} width={692} height={492} rx={38} fill="none" stroke="var(--o-stena)" strokeWidth={1.2} opacity={0.6} />
@@ -503,7 +503,7 @@ export const PlantCell = memo(function PlantCell(props: CellProps) {
   )
 })
 
-/* ───────────── prokariontska celica ───────────── */
+/* ───────────── prokaryotic cell ───────────── */
 
 export function ProkInner(props: CellProps) {
   const g = prokGeom
@@ -539,7 +539,7 @@ export const ProkCell = memo(function ProkCell(props: CellProps) {
   const g = prokGeom
   return (
     <div className="cellwrap">
-    <svg viewBox={`0 0 ${g.W} ${g.H}`} className={`cell ${props.focus ? 'focus' : ''} ${props.className ?? ''}`} role="img" aria-label={props.title ?? 'Prokariontska celica'}>
+    <svg viewBox={`0 0 ${g.W} ${g.H}`} className={`cell ${props.focus ? 'focus' : ''} ${props.className ?? ''}`} role="img" aria-label={props.title ?? 'Prokaryotic cell'}>
       <ProkInner {...props} />
       <Marker kind="prok" id={props.mark} tone="mark" />
       <Marker kind="prok" id={props.good} tone="good" />

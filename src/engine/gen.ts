@@ -4,7 +4,7 @@ import { ORGANELLES, ORG, ON_ANIMAL, ON_PLANT, type DetailId, type OrgId } from 
 import { level, retrievability, type Mem } from './fsrs'
 import { get } from './store'
 
-/* ───────── ustvarjene naloge ───────── */
+/* ───────── generated tasks ───────── */
 
 const orgConcept = (id: OrgId) => ORG[id].concepts[0]
 
@@ -28,30 +28,30 @@ function generated(): Task[] {
   })
   ;(Object.keys(LABEL_CONCEPTS) as DetailId[]).forEach(d => out.push({ t: 'labels', id: `lab:${d}`, c: LABEL_CONCEPTS[d]!, diagram: d }))
 
-  // poveži organel z vlogo: fiksni nabori, da je pokritost enakomerna
+  // match an organelle with its role: fixed sets so the coverage is even
   const roleOf: [OrgId, string, string][] = [
-    ['ribosomi', 'sinteza beljakovin', 'ribosomi.vloga'], ['mitohondrij', 'celično dihanje, ATP', 'mito.vloga'], ['lizosom', 'celična prebava', 'lizosom'],
-    ['golgi', 'pripravi produkte za izločanje', 'golgi.vloga'], ['jedrce', 'nastanek podenot ribosomov', 'jedrce'], ['kloroplast', 'fotosinteza', 'plastidi.def'],
-    ['gladkiER', 'lipidi, razgradnja strupov', 'er.gladki'], ['zrnatiER', 'beljakovine za izločanje', 'er.zrnati'], ['centrioli', 'celična delitev', 'centrioli'],
-    ['stena', 'trdnost, zaščita pred turgorjem', 'stena'], ['membrana', 'nadzor prehajanja snovi', 'membrana.vloga'], ['citoskelet', 'oblika in gibanje celice', 'citoskelet.vloga'],
-    ['vakuola', 'voda, barvila, opora (rastline)', 'vakuola.rastl'], ['skrobna', 'shranjevanje škroba', 'skrobna'], ['migetalke', 'premikanje celice', 'migetalke'],
+    ['ribosomi', 'protein synthesis', 'ribosomi.vloga'], ['mitohondrij', 'cellular respiration, ATP', 'mito.vloga'], ['lizosom', 'cellular digestion', 'lizosom'],
+    ['golgi', 'prepares products for secretion', 'golgi.vloga'], ['jedrce', 'making ribosome subunits', 'jedrce'], ['kloroplast', 'photosynthesis', 'plastidi.def'],
+    ['gladkiER', 'lipids, breakdown of toxins', 'er.gladki'], ['zrnatiER', 'proteins for secretion', 'er.zrnati'], ['centrioli', 'cell division', 'centrioli'],
+    ['stena', 'strength, protection against turgor changes', 'stena'], ['membrana', 'controls what passes in and out', 'membrana.vloga'], ['citoskelet', 'cell shape and movement', 'citoskelet.vloga'],
+    ['vakuola', 'water, pigments, support (plants)', 'vakuola.rastl'], ['skrobna', 'storing starch', 'skrobna'], ['migetalke', 'moving the cell', 'migetalke'],
   ]
   const sets = [[0, 1, 2, 3], [4, 5, 6, 7], [8, 9, 10, 11], [12, 13, 14, 0], [1, 6, 9, 4], [3, 7, 10, 13], [2, 5, 8, 11]]
   sets.forEach((ix, i) => {
     const rows = ix.map(k => roleOf[k])
-    out.push({ t: 'match', id: `mat:${i}`, c: rows.map(r => r[2]), q: 'Poveži organel z njegovo vlogo.', pairs: rows.map(r => [ORG[r[0]].name, r[1]] as [string, string]) })
+    out.push({ t: 'match', id: `mat:${i}`, c: rows.map(r => r[2]), q: 'Match the organelle with its role.', pairs: rows.map(r => [ORG[r[0]].name, r[1]] as [string, string]) })
   })
 
   CONCEPTS.filter(c => c.q && c.kp).forEach(c => out.push({ t: 'explain', id: `exp:${c.id}`, c: [c.id], q: c.q!, kp: c.kp!, ref: c.text }))
 
   const recall: [string, string, string][] = [
-    ['1595', 'Zaharias Janssen: prvi sestavljeni mikroskop z več kot eno lečo.', 'mejnik.janssen'],
-    ['1632 do 1723', 'Antoni van Leeuwenhoek: okrog 500 mikroskopov z eno lečo; odkril bakterije, rdeče krvničke, spermije, praživali.', 'mejnik.leeuwenhoek'],
-    ['1665 · Mikrografija', 'Robert Hooke: izraz celica za strukture v pluti.', 'mejnik.hooke'],
-    ['1838/39', 'Schleiden (botanik) in Schwann (zoolog): celična teorija, celica je osnovna enota živih bitij.', 'mejnik.schleiden'],
-    ['1855', 'Rudolph Virchow: nove celice nastanejo le z delitvijo obstoječih.', 'mejnik.virchow'],
-    ['1880', 'August Weismann: vse današnje celice so potomke celic iz pradavnine; povezava z evolucijo.', 'mejnik.weismann'],
-    ['1938', 'Ernst Ruska: presevni elektronski mikroskop (TEM). Približno sočasno von Ardenne: vrstični (SEM).', 'mikro.tem'],
+    ['1595', 'Zaharias Janssen: the first compound microscope with more than one lens.', 'mejnik.janssen'],
+    ['1632 to 1723', 'Antoni van Leeuwenhoek: about 500 single lens microscopes; discovered bacteria, red blood cells, sperm cells, protozoa.', 'mejnik.leeuwenhoek'],
+    ['1665 · Micrographia', 'Robert Hooke: the term cell for structures in cork.', 'mejnik.hooke'],
+    ['1838/39', 'Schleiden (botanist) and Schwann (zoologist): cell theory, the cell is the basic unit of living things.', 'mejnik.schleiden'],
+    ['1855', 'Rudolph Virchow: new cells only arise by division of existing cells.', 'mejnik.virchow'],
+    ['1880', 'August Weismann: all present cells descend from cells of the distant past; link to evolution.', 'mejnik.weismann'],
+    ['1938', 'Ernst Ruska: transmission electron microscope (TEM). At about the same time von Ardenne: scanning (SEM).', 'mikro.tem'],
   ]
   recall.forEach(([f, b, c], i) => out.push({ t: 'recall', id: `rec:${i}`, c: [c], front: f, back: b }))
   ORGANELLES.filter(o => o.id !== 'citoplazma').forEach(o => out.push({ t: 'recall', id: `reco:${o.id}`, c: [orgConcept(o.id)], front: o.name, back: o.vloga }))
@@ -70,7 +70,7 @@ export const allTasks = () => [...ALL, ...get().ai]
 export const taskById = (id: string) => allTasks().find(t => t.id === id)
 export const topicOf = (t: Task): TopicId => CON[t.c[0]]?.topic ?? 'organeli'
 
-/* ───────── izbor nalog (seja) ───────── */
+/* ───────── choosing tasks (session) ───────── */
 
 export type Item =
   | { kind: 'task'; task: Task; key: string; retry?: boolean; label?: string }
@@ -112,7 +112,7 @@ function pickTaskFor(concept: string, used: Set<string>, opts: SessionOpts, tier
   for (const tier of tiers) {
     const inTier = cands.filter(t => TYPE_INFO[t.t].tier === tier)
     if (!inTier.length) continue
-    // najprej naloge, ki jih še ni videl ali jih ni videl dolgo
+    // first the tasks not seen yet or not seen for a long time
     const scored = inTier.map(t => ({ t, w: (s.seenTask[t.id] ? Math.min(1, (now - s.seenTask[t.id]) / (3 * 86400000)) : 1.4) + Math.random() * 0.6 + (t.t === 'explain' && tier === 3 ? 0.2 : 0) }))
     scored.sort((a, b) => b.w - a.w)
     return scored[0].t
@@ -134,7 +134,7 @@ export function buildSession(opts: SessionOpts): Item[] {
   const items: Item[] = []
 
   if (opts.mode === 'test') {
-    // preizkus: mešane naloge 2. in 3. ravni (in malo 1.), brez predstavitev
+    // test: mixed tasks of levels 2 and 3 (and a little of 1), no introductions
     const tasks = shuffle(allTasks().filter(t => (!opts.topic || topicOf(t) === opts.topic) && t.t !== 'recall' && t.t !== 'explain'))
     const want: TaskType[] = ['mc', 'tf', 'cloze', 'type', 'fix', 'odd', 'labels', 'sort', 'order', 'locate', 'identify', 'match', 'mc', 'type', 'cloze', 'tf', 'labels', 'fix']
     for (const ty of want) {
@@ -176,7 +176,7 @@ export function buildSession(opts: SessionOpts): Item[] {
     used.add(t.id)
     items.push({ kind: 'task', task: t, key: t.id })
   }
-  // če je premalo nalog (npr. vse že videne), dopolni z nalogami iz poola
+  // if there are too few tasks (e.g. all already seen), top up with tasks from the pool
   if (items.filter(i => i.kind === 'task').length < Math.min(size, 6)) {
     const extra = shuffle(allTasks().filter(t => !used.has(t.id) && t.c.some(c => pool.some(p => p.id === c)) && (!opts.type || t.t === opts.type) && (s.settings.ai || t.t !== 'explain')))
     for (const t of extra) { if (items.filter(i => i.kind === 'task').length >= size) break; used.add(t.id); items.push({ kind: 'task', task: t, key: t.id }) }
@@ -184,7 +184,7 @@ export function buildSession(opts: SessionOpts): Item[] {
   return interleave(items)
 }
 
-// predstavitev pojma ostane takoj pred prvo nalogo; naloge iste vrste ne pridejo trikrat zapored
+// the introduction of a concept stays right before its first task; tasks of the same type do not come three times in a row
 function interleave(items: Item[]): Item[] {
   const blocks: Item[][] = []
   for (const it of items) {
@@ -203,14 +203,14 @@ function interleave(items: Item[]): Item[] {
   return out
 }
 
-// po napaki: podobna naloga za isti pojem
+// after a mistake: a similar task for the same concept
 export function similarTask(t: Task, exclude: Set<string>): Task | undefined {
   const c = t.c[0]
   const cands = allTasks().filter(x => x.c.includes(c) && x.id !== t.id && !exclude.has(x.id) && TYPE_INFO[x.t].tier <= TYPE_INFO[t.t].tier && x.t !== 'explain')
   return cands.length ? rnd(cands) : undefined
 }
 
-/* ───────── preverjanje odgovorov ───────── */
+/* ───────── checking answers ───────── */
 
 export function norm(s: string): string {
   return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9µ ]+/g, ' ').replace(/\s+/g, ' ').trim()

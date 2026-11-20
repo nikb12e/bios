@@ -1,11 +1,11 @@
-// Prijava: Google Identity Services (ID žeton), e-pošta s kodo ali e-pošta z geslom. Stanje prijave za React.
+// Sign in: Google Identity Services (ID token), email with a code or email with a password. Sign in state for React.
 import { useSyncExternalStore } from 'react'
 import { bindUser, unbindUser, flushRemote, setUnauthorizedHandler } from './store'
 
-// Open source različica: brez strežnika in brez računov. Napredek se shrani samo v tem brskalniku.
+// Open source version: no server and no accounts. Progress is saved only in this browser.
 export const OFFLINE = true
 export const GOOGLE_CLIENT_ID = ''
-const LOCAL_USER: User = { id: 'local', email: '', name: 'Učenec', hasPw: false, google: false }
+const LOCAL_USER: User = { id: 'local', email: '', name: 'Learner', hasPw: false, google: false }
 
 export interface User { id: string; email: string; name: string; picture?: string; hasPw: boolean; google: boolean }
 export interface AuthState { status: 'loading' | 'out' | 'in'; user: User | null; offline?: boolean; note?: string }
@@ -19,11 +19,11 @@ export const useAuth = () => useSyncExternalStore(cb => { subs.add(cb); return (
 export const authState = () => st
 
 async function api<T>(path: string, body?: unknown): Promise<T> {
-  if (OFFLINE) throw Object.assign(new Error('Open source različica nima strežnika.'), { status: 503, data: null })
+  if (OFFLINE) throw Object.assign(new Error('The open source build has no server.'), { status: 503, data: null })
   const r = await fetch(path, body === undefined ? { credentials: 'same-origin' } : { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
   const ct = r.headers.get('content-type') ?? ''
   const j = (ct.includes('application/json') ? await r.json().catch(() => null) : null) as (T & { error?: string }) | null
-  if (!r.ok || !j) throw Object.assign(new Error(j?.error || 'Strežnik ni dosegljiv (' + r.status + ').'), { status: r.status || 500, data: j })
+  if (!r.ok || !j) throw Object.assign(new Error(j?.error || 'Server not reachable (' + r.status + ').'), { status: r.status || 500, data: j })
   return j
 }
 
@@ -46,7 +46,7 @@ export async function boot() {
     await signedIn(j.user)
   } catch (e) {
     const status = (e as { status?: number }).status
-    // brez povezave: nadaljuj z zadnjim znanim računom, napredek se uskladi pozneje
+    // offline: continue with the last known account, progress syncs later
     if (!status) {
       try {
         const cached = JSON.parse(localStorage.getItem(CACHE) ?? 'null') as User | null
@@ -57,7 +57,7 @@ export async function boot() {
   }
 }
 
-// ključ iz gesla: PBKDF2 v brskalniku, sol je e-naslov (strežnik nikoli ne vidi gesla)
+// key from the password: PBKDF2 in the browser, the salt is the email address (the server never sees the password)
 export async function deriveKey(email: string, password: string) {
   const enc = new TextEncoder()
   const base = await crypto.subtle.importKey('raw', enc.encode(password.normalize('NFKC')), 'PBKDF2', false, ['deriveBits'])
@@ -82,7 +82,7 @@ export async function registerEmail(name: string, email: string, password: strin
   await signedIn(j.user)
 }
 
-/* ───────── e-pošta s kodo ───────── */
+/* ───────── email with a code ───────── */
 let cfgP: Promise<{ code: boolean }> | null = null
 export function authConfig() {
   cfgP ??= api<{ code: boolean }>('/api/auth/config').catch(() => { cfgP = null; return { code: false } })
@@ -93,7 +93,7 @@ export async function sendCode(email: string, name?: string) {
 }
 export async function verifyCode(email: string, code: string, name?: string) {
   const j = await api<{ user: User; isNew?: boolean }>('/api/auth/code/verify', { email, code, name })
-  await signedIn(j.user, j.isNew ? `Dobrodošel v Biosu, ${j.user.name.split(' ')[0]}. Začni z dnevnim treningom.` : undefined)
+  await signedIn(j.user, j.isNew ? `Welcome to Bios, ${j.user.name.split(' ')[0]}. Start with today's training.` : undefined)
 }
 
 export async function setPassword(password: string) {
@@ -128,17 +128,17 @@ export async function logout() {
 
 export async function deleteAccount() {
   if (OFFLINE) return logout()
-  await api('/api/auth/delete', { confirm: 'IZBRIŠI' })
+  await api('/api/auth/delete', { confirm: 'DELETE' })
   unbindUser(true)
   try { localStorage.removeItem(CACHE) } catch { /* ignore */ }
   put({ status: 'out', user: null })
 }
 
-// ko strežnik vrne 401 med uporabo (seja potekla)
+// when the server returns 401 during use (session expired)
 export function expired() {
   if (st.status !== 'in' || st.offline) return
   unbindUser(false)
-  put({ status: 'out', user: null, note: 'Seja je potekla. Prijavi se znova.' })
+  put({ status: 'out', user: null, note: 'Your session expired. Sign in again.' })
 }
 
 setUnauthorizedHandler(expired)

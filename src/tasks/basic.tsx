@@ -63,7 +63,7 @@ export function TFTask({ task, done, onAnswer }: TaskProps<T<'tf'>>) {
     setFirst(v)
     const right = v === task.a
     if (!right) {
-      onAnswer({ ok: false, grade: 1, msg: task.why ?? (task.fix ? `Pravilno: ${task.fix.opts[task.fix.a]}.` : undefined), answer: task.a ? 'Trditev drži.' : 'Trditev ne drži.' })
+      onAnswer({ ok: false, grade: 1, msg: task.why ?? (task.fix ? `Correct: ${task.fix.opts[task.fix.a]}.` : undefined), answer: task.a ? 'The statement is true.' : 'The statement is false.' })
     } else if (task.a || !task.fix) {
       onAnswer({ ok: true, grade: 3, msg: task.why })
     }
@@ -72,21 +72,21 @@ export function TFTask({ task, done, onAnswer }: TaskProps<T<'tf'>>) {
     if (!task.fix || fixPick !== null) return
     setFixPick(i)
     const ok = i === task.fix.a
-    onAnswer({ ok: true, grade: ok ? 3 : 2, title: ok ? 'Odlično, tudi popravek je pravilen' : 'Prepoznal si napako, popravek pa ni pravi', msg: ok ? task.why : undefined, answer: ok ? undefined : task.fix.opts[task.fix.a] })
+    onAnswer({ ok: true, grade: ok ? 3 : 2, title: ok ? 'Excellent, the correction is right too' : 'You spotted the mistake, but the correction is wrong', msg: ok ? task.why : undefined, answer: ok ? undefined : task.fix.opts[task.fix.a] })
   }
   const needFix = first === false && task.a === false && !!task.fix
   return (
     <div>
       <OrgVisual org={task.org} />
       <div className="card" style={{ padding: '22px 20px', marginBottom: 16 }}>
-        <div className="over" style={{ marginBottom: 8 }}>Trditev</div>
+        <div className="over" style={{ marginBottom: 8 }}>Statement</div>
         <div style={{ fontSize: 21, lineHeight: 1.32, fontWeight: 650, letterSpacing: '-0.016em' }}>{task.s}</div>
       </div>
       <div className="grid2">
         {[true, false].map(v => {
           let cls = 'opt'
           if (first !== null) cls += v === task.a ? ' good' : v === first ? ' bad' : ' dim'
-          return <button key={String(v)} className={cls} style={{ justifyContent: 'center', fontWeight: 700, fontSize: 17 }} onClick={() => answer(v)}>{v ? 'Drži' : 'Ne drži'}</button>
+          return <button key={String(v)} className={cls} style={{ justifyContent: 'center', fontWeight: 700, fontSize: 17 }} onClick={() => answer(v)}>{v ? 'True' : 'False'}</button>
         })}
       </div>
       {needFix && task.fix && (
@@ -129,7 +129,7 @@ export function OddTask({ task, done, onAnswer }: TaskProps<T<'odd'>>) {
 }
 
 export function FixTask({ task, done, onAnswer }: TaskProps<T<'fix'>>) {
-  // besedilo z [narobe|prav]
+  // text with [wrong|right]
   const parts = useMemo(() => {
     const m = task.text.match(/^(.*)\[([^|\]]+)\|([^\]]+)\](.*)$/)!
     return { pre: m[1], wrong: m[2], right: m[3], post: m[4] }
@@ -151,7 +151,7 @@ export function FixTask({ task, done, onAnswer }: TaskProps<T<'fix'>>) {
     if (words[i].target) setStage('replace')
     else {
       setStage('end')
-      onAnswer({ ok: false, grade: 1, msg: task.why, answer: <>Napačna beseda je <b>{parts.wrong}</b>, pravilno: <b>{parts.right}</b>.</> })
+      onAnswer({ ok: false, grade: 1, msg: task.why, answer: <>The wrong word is <b>{parts.wrong}</b>, correct: <b>{parts.right}</b>.</> })
     }
   }
   const replace = (o: string) => {
@@ -159,11 +159,11 @@ export function FixTask({ task, done, onAnswer }: TaskProps<T<'fix'>>) {
     setRep(o)
     setStage('end')
     const ok = o === parts.right
-    onAnswer({ ok, grade: ok ? 3 : 2, title: ok ? undefined : 'Napako si našel, zamenjava ni prava', msg: task.why, answer: ok ? undefined : <>Pravilno: <b>{parts.right}</b>.</> })
+    onAnswer({ ok, grade: ok ? 3 : 2, title: ok ? undefined : 'You found the mistake, but the replacement is wrong', msg: task.why, answer: ok ? undefined : <>Correct: <b>{parts.right}</b>.</> })
   }
   return (
     <div>
-      <h2 className="q sm">Tapni besedo, ki je napačna.</h2>
+      <h2 className="q sm">Tap the word that is wrong.</h2>
       <div className="card" style={{ fontSize: 20, lineHeight: 1.7, fontWeight: 500, padding: '20px 18px' }}>
         {words.map((w, i) => /^\s+$/.test(w.t) ? <span key={i}>{w.t}</span> : (
           <span key={i} className={`word ${tapped === i ? (w.target ? 'good' : 'bad') : ''} ${stage === 'end' && w.target && tapped !== i ? 'sel' : ''}`} onClick={() => tap(i)}>
@@ -173,7 +173,7 @@ export function FixTask({ task, done, onAnswer }: TaskProps<T<'fix'>>) {
       </div>
       {stage === 'replace' && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} style={{ marginTop: 20 }}>
-          <div className="hl" style={{ margin: '0 2px 10px' }}>S čim jo zamenjaš?</div>
+          <div className="hl" style={{ margin: '0 2px 10px' }}>What do you replace it with?</div>
           <div className="wrapchips">{opts.map(o => <button key={o} className="tok" onClick={() => replace(o)}>{o}</button>)}</div>
         </motion.div>
       )}
@@ -190,14 +190,14 @@ export function TypeTask({ task, done, onAnswer }: TaskProps<T<'type'>>) {
     const m = matchAnswer(v, task.a)
     setSt(m === 'no' ? 'bad' : 'good')
     if (m === 'exact') onAnswer({ ok: true, grade: 3, msg: task.why })
-    else if (m === 'typo') onAnswer({ ok: true, grade: 2, title: 'Pravilno, pazi na zapis', answer: <>Pravilen zapis: <b>{task.a[0]}</b></>, msg: task.why })
+    else if (m === 'typo') onAnswer({ ok: true, grade: 2, title: 'Correct, watch the spelling', answer: <>Correct spelling: <b>{task.a[0]}</b></>, msg: task.why })
     else onAnswer({ ok: false, grade: 1, answer: <b>{task.a[0]}</b>, msg: task.why })
   }
   return (
     <div>
-      <div className="over" style={{ margin: '0 2px 8px' }}>Opis</div>
+      <div className="over" style={{ margin: '0 2px 8px' }}>Description</div>
       <h2 className="q">{task.q}</h2>
-      <input ref={ref} className={`field ${st}`} value={v} onChange={e => setV(e.target.value)} placeholder="Strokovni izraz" autoCapitalize="off" autoCorrect="off" spellCheck={false}
+      <input ref={ref} className={`field ${st}`} value={v} onChange={e => setV(e.target.value)} placeholder="Scientific term" autoCapitalize="off" autoCorrect="off" spellCheck={false}
         onKeyDown={e => { if (e.key === 'Enter') submit() }} disabled={done} enterKeyHint="done" />
       {!done && <CheckBtn disabled={!v.trim()} onClick={submit} />}
     </div>
@@ -206,15 +206,15 @@ export function TypeTask({ task, done, onAnswer }: TaskProps<T<'type'>>) {
 
 export function RecallTask({ task, done, onAnswer }: TaskProps<T<'recall'>>) {
   const [flip, setFlip] = useState(false)
-  const rate = (g: 1 | 2 | 3 | 4) => onAnswer({ ok: g >= 2, grade: g, title: g >= 3 ? 'Zabeleženo' : g === 2 ? 'Bo prišlo kmalu spet' : 'Ponovil boš kmalu', msg: undefined })
+  const rate = (g: 1 | 2 | 3 | 4) => onAnswer({ ok: g >= 2, grade: g, title: g >= 3 ? 'Recorded' : g === 2 ? 'Coming back soon' : 'You will review it soon', msg: undefined })
   return (
     <div>
-      <h2 className="q sm">Najprej se spomni sam, nato obrni kartico.</h2>
+      <h2 className="q sm">Recall it yourself first, then flip the card.</h2>
       <div className="flip" onClick={() => !done && setFlip(true)}>
         <div className={`flip-in ${flip ? 'on' : ''}`}>
           <div className="flip-f" style={{ alignItems: 'center', textAlign: 'center' }}>
             <div className="t1">{task.front}</div>
-            <div className="fn" style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 6 }}><RotateCw size={15} /> Tapni za odgovor</div>
+            <div className="fn" style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 6 }}><RotateCw size={15} /> Tap for the answer</div>
           </div>
           <div className="flip-b">
             <div className="over" style={{ marginBottom: 8 }}>{task.front}</div>
@@ -224,7 +224,7 @@ export function RecallTask({ task, done, onAnswer }: TaskProps<T<'recall'>>) {
       </div>
       {flip && !done && (
         <div className="grid2" style={{ marginTop: 16, gridTemplateColumns: 'repeat(4,1fr)', gap: 8 }}>
-          {([[1, 'Nisem vedel'], [2, 'Težko'], [3, 'Vedel'], [4, 'Z lahkoto']] as const).map(([g, l]) => (
+          {([[1, 'Didn\'t know'], [2, 'Hard'], [3, 'Knew it'], [4, 'Easy']] as const).map(([g, l]) => (
             <button key={g} className="opt" style={{ justifyContent: 'center', textAlign: 'center', fontSize: 14, padding: 10, minHeight: 64, fontWeight: 650, color: g === 1 ? 'var(--bad)' : g === 4 ? 'var(--accent-ink)' : undefined }} onClick={() => rate(g)}>{l}</button>
           ))}
         </div>

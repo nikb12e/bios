@@ -15,23 +15,23 @@ export function OrgInfo({ id, onPractice, compact }: { id: OrgId; onPractice?: (
       <div className="sub" style={{ marginTop: -4 }}>{o.short}</div>
       {o.detail && <div className="stage" style={{ padding: compact ? 4 : 8, background: 'var(--card)' }}><DetailView id={o.detail} mode="study" /></div>}
       <dl className="kv">
-        {o.mesto && <><dt>Mesto</dt><dd>{o.mesto}</dd></>}
-        {o.zgradba && <><dt>Zgradba</dt><dd>{o.zgradba}</dd></>}
-        <dt>Vloga</dt><dd>{o.vloga}</dd>
+        {o.mesto && <><dt>Location</dt><dd>{o.mesto}</dd></>}
+        {o.zgradba && <><dt>Structure</dt><dd>{o.zgradba}</dd></>}
+        <dt>Role</dt><dd>{o.vloga}</dd>
       </dl>
-      {o.pazi && <div className="pazi"><b>Pazi</b><span>{o.pazi}</span></div>}
+      {o.pazi && <div className="pazi"><b>Watch out</b><span>{o.pazi}</span></div>}
       <div className="row" style={{ flexWrap: 'wrap', gap: 8 }}>
-        <span className="badge">{pres(o.presence.zival)} živalska</span>
-        <span className="badge">{pres(o.presence.rastl)} rastlinska</span>
-        <span className="badge">{pres(o.presence.prok)} prokariontska</span>
-        <span className="cap grow" style={{ textAlign: 'right' }}>Zapiski, str. {o.page}</span>
+        <span className="badge">{pres(o.presence.zival)} animal</span>
+        <span className="badge">{pres(o.presence.rastl)} plant</span>
+        <span className="badge">{pres(o.presence.prok)} prokaryotic</span>
+        <span className="cap grow" style={{ textAlign: 'right' }}>Notes, p. {o.page}</span>
       </div>
       <div className="row">
         <div className="grow">
-          <div className="cap">Tvoje znanje</div>
+          <div className="cap">Your knowledge</div>
           <div className="bar" style={{ marginTop: 6 }}><i style={{ width: `${Math.round(m * 100)}%` }} /></div>
         </div>
-        {onPractice && <button className="btn sm" onClick={() => onPractice(o.id)}><Dumbbell size={16} /> Vadi</button>}
+        {onPractice && <button className="btn sm" onClick={() => onPractice(o.id)}><Dumbbell size={16} /> Practise</button>}
       </div>
     </div>
   )

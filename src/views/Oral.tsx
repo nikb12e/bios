@@ -42,7 +42,7 @@ export default function Oral({ topic: initial, onClose }: { topic?: string; onCl
       }
       setMsgs(m => [...m, { role: 'ai', text: r.say, verdict: r.verdict, missing: r.missing, concept: r.concept }])
     } catch {
-      setErr(aiDown() ? 'Ustno spraševanje z AI potrebuje strežnik, ki ga open source različica nima. Za vajo uporabi naloge Razloži v treningu.' : 'AI se ni odzval. Preveri povezavo in poskusi znova.')
+      setErr(aiDown() ? 'The oral exam needs your own AI key. Add it in Progress → AI key (OpenRouter, Anthropic or OpenAI).' : 'The AI did not respond. Check your connection and key, then try again.')
     }
     setBusy(false)
   }
@@ -68,21 +68,21 @@ export default function Oral({ topic: initial, onClose }: { topic?: string; onCl
   return (
     <motion.div className="session" initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 30 }} transition={spring}>
       <div className="s-top">
-        <button className="iconbtn glass" onClick={onClose} aria-label="Zapri"><X size={20} /></button>
+        <button className="iconbtn glass" onClick={onClose} aria-label="Close"><X size={20} /></button>
         <div className="grow">
-          <div className="hl" style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Sparkles size={16} color="var(--accent)" /> Ustno spraševanje</div>
-          <div className="cap">{topic ? (topic === 'vse' ? 'Vse teme' : TOPICS.find(t => t.id === topic)?.title) : 'Izberi temo'}{verdicts.length ? ` · ${verdicts.length} odgovorov · ${Math.round(score * 100)}%` : ''}</div>
+          <div className="hl" style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Sparkles size={16} color="var(--accent)" /> Oral exam</div>
+          <div className="cap">{topic ? (topic === 'vse' ? 'All topics' : TOPICS.find(t => t.id === topic)?.title) : 'Choose a topic'}{verdicts.length ? ` · ${verdicts.length} answers · ${Math.round(score * 100)}%` : ''}</div>
         </div>
-        {verdicts.length > 0 && <button className="btn xs ghost" onClick={onClose}><Flag size={14} /> Končaj</button>}
+        {verdicts.length > 0 && <button className="btn xs ghost" onClick={onClose}><Flag size={14} /> Finish</button>}
       </div>
       <div className="s-body" ref={scroller}>
         <div className="s-inner" style={{ paddingBottom: 170 }}>
           {!topic ? (
             <div className="stack" style={{ marginTop: 10 }}>
-              <h2 className="t1">Iz česa te sprašujem?</h2>
-              <div className="sub">Sprašujem kot profesorica na ustnem: eno vprašanje naenkrat, strogo ocenim po tvojih zapiskih in povem, kaj manjka. Najprej pridejo pojmi, ki jih najslabše znaš.</div>
+              <h2 className="t1">What should I ask you about?</h2>
+              <div className="sub">I ask like a teacher in an oral exam: one question at a time, I grade strictly against your notes and tell you what is missing. The concepts you know worst come first.</div>
               <div className="list" style={{ marginTop: 8 }}>
-                <button className="li nolead" onClick={() => setTopic('vse')}><span className="hl grow">Vse teme</span></button>
+                <button className="li nolead" onClick={() => setTopic('vse')}><span className="hl grow">All topics</span></button>
                 {TOPICS.map(t => <button key={t.id} className="li nolead" onClick={() => setTopic(t.id as TopicId)}><span className="legend-dot" style={{ background: t.tint }} /><span className="hl grow">{t.title}</span><span className="cap">{t.pages}</span></button>)}
               </div>
             </div>
@@ -93,13 +93,13 @@ export default function Oral({ topic: initial, onClose }: { topic?: string; onCl
                   <motion.div key={i} className={`msg ${m.role}`} initial={{ opacity: 0, y: 10, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ type: 'spring', bounce: 0.15, duration: 0.4 }}>
                     {m.verdict && <div className={`badge ${VERDICT[m.verdict].tone === 'good' ? 'accent' : VERDICT[m.verdict].tone === 'bad' ? 'bad' : 'warn'}`} style={{ marginBottom: 6 }}>{VERDICT[m.verdict].label}</div>}
                     <div>{m.text}</div>
-                    {m.missing && m.missing.length > 0 && <div className="fn" style={{ marginTop: 6 }}>Manjka: {m.missing.join('; ')}</div>}
-                    {m.concept && CON[m.concept] && <div className="cap" style={{ marginTop: 6 }}>Zapiski, str. {CON[m.concept].page}</div>}
+                    {m.missing && m.missing.length > 0 && <div className="fn" style={{ marginTop: 6 }}>Missing: {m.missing.join('; ')}</div>}
+                    {m.concept && CON[m.concept] && <div className="cap" style={{ marginTop: 6 }}>Notes, p. {CON[m.concept].page}</div>}
                   </motion.div>
                 ))}
               </AnimatePresence>
               {busy && <div className="msg ai"><span className="typing"><span /><span /><span /></span></div>}
-              {err && <div className="msg ai" style={{ color: 'var(--bad)' }}>{err} <button className="btn xs ghost" style={{ marginLeft: 6 }} onClick={() => ask(msgs)}>Znova</button></div>}
+              {err && <div className="msg ai" style={{ color: 'var(--bad)' }}>{err} <button className="btn xs ghost" style={{ marginLeft: 6 }} onClick={() => ask(msgs)}>Again</button></div>}
             </div>
           )}
         </div>
@@ -108,9 +108,9 @@ export default function Oral({ topic: initial, onClose }: { topic?: string; onCl
         <div className="s-foot glass" style={{ borderRadius: '30px 30px 0 0' }}>
           <div className="inner row" style={{ alignItems: 'flex-end' }}>
             <MicButton d={dict} />
-            <textarea className="field" rows={1} value={v} onChange={e => setV(e.target.value)} placeholder={dict.rec ? 'Snemam …' : 'Odgovori ali govori'} style={{ minHeight: 56, maxHeight: 160, fontSize: 16, padding: '15px 16px' }}
+            <textarea className="field" rows={1} value={v} onChange={e => setV(e.target.value)} placeholder={dict.rec ? 'Recording …' : 'Answer or speak'} style={{ minHeight: 56, maxHeight: 160, fontSize: 16, padding: '15px 16px' }}
               onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }} />
-            <button className="mic" style={{ background: v.trim() ? 'var(--ink)' : 'var(--card)', color: v.trim() ? 'var(--bg)' : 'var(--ink-3)' }} onClick={send} disabled={!v.trim() || busy} aria-label="Pošlji"><ArrowUp size={22} /></button>
+            <button className="mic" style={{ background: v.trim() ? 'var(--ink)' : 'var(--card)', color: v.trim() ? 'var(--bg)' : 'var(--ink-3)' }} onClick={send} disabled={!v.trim() || busy} aria-label="Send"><ArrowUp size={22} /></button>
           </div>
           {dict.err && <div className="fn inner" style={{ marginTop: 6, color: 'var(--bad)' }}>{dict.err}</div>}
         </div>

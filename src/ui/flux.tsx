@@ -1,11 +1,11 @@
-/* ─────────────────────────── Bios · jezik »Živa« ───────────────────────────
-   Gradniki izraznega oblikovnega jezika: oblike, ki se prelivajo ena v drugo
-   (vse imajo isto število točk, zato se morfirajo), valovit napredek, tekoč
-   indikator zavihkov, izbruh oblik ob uspehu in odpiranje iz mesta dotika. */
+/* ─────────────────────────── Bios · the “Živa” language ───────────────────────────
+   Building blocks of an expressive design language: shapes that flow into one another
+   (they all have the same number of points, so they morph), wavy progress, a fluid
+   tab indicator, a burst of shapes on success and opening from the point of touch. */
 import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { AnimatePresence, animate, motion, useMotionValue, useReducedMotion, useTransform } from 'motion/react'
 
-/* ───────── oblike ───────── */
+/* ───────── shapes ───────── */
 export type ShapeKind = 'circle' | 'cookie' | 'cookie12' | 'sunny' | 'flower' | 'clover' | 'blob' | 'squircle' | 'gem' | 'pill' | 'arch'
 
 const N = 64
@@ -30,7 +30,7 @@ export function shapePath(kind: ShapeKind): string {
   const raw = Array.from({ length: N }, (_, i) => { const a = (i / N) * Math.PI * 2 - Math.PI / 2; const r = f(a + Math.PI / 2); return [Math.cos(a) * r, Math.sin(a) * r] })
   const m = Math.max(...raw.map(([x, y]) => Math.hypot(x, y)))
   const p = raw.map(([x, y]) => [x / m, y / m])
-  // Catmull Rom → kubične Bézierjeve krivulje; vedno enako število ukazov
+  // Catmull Rom → cubic Bézier curves; always the same number of commands
   const q = (v: number) => v.toFixed(3)
   let d = `M${q(p[0][0])} ${q(p[0][1])}`
   for (let i = 0; i < N; i++) {
@@ -57,7 +57,7 @@ export function Shape({ kind, size = 48, fill = 'currentColor', spin = 0, classN
   )
 }
 
-/* ───────── valovit napredek (linija) ───────── */
+/* ───────── wavy progress (line) ───────── */
 export function Wavy({ value, color, style, flat }: { value: number; color?: string; style?: CSSProperties; flat?: boolean }) {
   const v = Math.max(0, Math.min(1, value))
   return (
@@ -68,7 +68,7 @@ export function Wavy({ value, color, style, flat }: { value: number; color?: str
   )
 }
 
-/* ───────── valovit krog ───────── */
+/* ───────── wavy ring ───────── */
 export function WavyRing({ value, size = 96, stroke = 8, color = 'currentColor', track, waves = 12, children }: {
   value: number; size?: number; stroke?: number; color?: string; track?: string; waves?: number; children?: ReactNode
 }) {
@@ -102,7 +102,7 @@ export function WavyRing({ value, size = 96, stroke = 8, color = 'currentColor',
   )
 }
 
-/* ───────── tekoč indikator (zavihki): sprednji rob prehiti, zadnji ga dohiti ───────── */
+/* ───────── fluid indicator (tabs): the front edge leads, the back edge catches up ───────── */
 export function useLiquid(index: number, slot: number) {
   const a = useMotionValue(index * slot)
   const b = useMotionValue((index + 1) * slot)
@@ -123,7 +123,7 @@ export function useLiquid(index: number, slot: number) {
   return { start: a, size, squash }
 }
 
-/* ───────── izbruh oblik (uspeh) ───────── */
+/* ───────── burst of shapes (success) ───────── */
 type Bit = { id: number; x: number; y: number; dx: number; dy: number; r: number; s: number; k: ShapeKind; c: string }
 let bitId = 0
 const subs = new Set<(b: Bit[]) => void>()
@@ -169,7 +169,7 @@ export function BurstHost() {
   )
 }
 
-/* ───────── odpiranje iz mesta dotika (preoblikovanje vsebnika) ───────── */
+/* ───────── opening from the point of touch (container transform) ───────── */
 let lastRect: DOMRect | null = null
 let lastAt = 0
 if (typeof document !== 'undefined') {
