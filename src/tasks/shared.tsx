@@ -10,6 +10,10 @@ export interface Result {
   title?: string // e.g. "Correct" or "Almost"
   msg?: ReactNode // explanation
   answer?: ReactNode // correct answer
+  /** the text of your answer (to explain the mistake) */
+  given?: string
+  /** the I don't know button */
+  idk?: boolean
 }
 
 export interface TaskProps<T extends Task = Task> {

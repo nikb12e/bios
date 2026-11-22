@@ -11,6 +11,7 @@ import Login from './views/Login'
 import type { SessionOpts, Item } from './engine/gen'
 import type { SavedSession } from './engine/store'
 import { boot, useAuth, clearNote } from './engine/auth'
+import { loadBank } from './engine/bank'
 import { TOP, type TopicId } from './data/concepts'
 import { spring, Avatar, useWide } from './ui/kit'
 import { BurstHost, useLiquid } from './ui/flux'
@@ -57,6 +58,7 @@ const ORDER = TABS.map(t => t.id)
 export default function App() {
   const auth = useAuth()
   useEffect(() => { void boot() }, [])
+  useEffect(() => { if (auth.status === 'in' && !auth.offline) void loadBank() }, [auth.status])
   return (
     <MotionConfig reducedMotion="user">
       <AnimatePresence mode="wait">

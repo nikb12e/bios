@@ -1,17 +1,21 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { motion } from 'motion/react'
-import { Volume2, Sparkles, Trash, Pencil, Hash, KeyRound } from 'lucide-react'
+import { Volume2, AudioLines, History, Sparkles, Trash, Pencil, Hash, KeyRound } from 'lucide-react'
 import { PROVIDERS, getLlm, setLlm, testLlm, onLlmChange, type Provider } from '../engine/llm'
 import type { Nav } from '../App'
 import { useStore, set, resetAll, dayKey } from '../engine/store'
 import { useAuth, setPassword, deleteAccount, rename } from '../engine/auth'
 import { topicMastery, orgMastery, levelCounts, forecast, accuracy } from '../engine/stats'
-import { TOPICS } from '../data/concepts'
+import { TOPICS, CONCEPTS } from '../data/concepts'
+import { levelOfConcept } from '../engine/gen'
+import { fmt1 } from '../engine/adapt'
 import { LEVEL_NAME } from '../engine/fsrs'
 import { Avatar, CountUp, Screen, Group, Row, Toggle, Sheet, TOPIC_LOOK } from '../ui/kit'
 import { Shape, WavyRing } from '../ui/flux'
 import { AnimalCell } from '../art/Cells'
 import { GOAL } from './Home'
+import { VersionsSheet } from './Versions'
+import { CURRENT } from '../data/versions'
 
 const LV_COLOR = { nov: 'var(--fill)', ucim: 'var(--amber)', utrjujem: 'var(--sky)', obvladam: 'var(--green)' }
 const WD = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -28,9 +32,10 @@ export default function Progress({ nav }: { nav: Nav }) {
   const maxN = Math.max(GOAL, ...week.map(d => d.n))
   const [edit, setEdit] = useState<'' | 'name' | 'pw' | 'delete'>('')
   const [keySheet, setKeySheet] = useState(false)
+  const [vh, setVh] = useState(false)
   const [llm, setLlmState] = useState(getLlm())
   useEffect(() => onLlmChange(() => setLlmState(getLlm())), [])
-  const settings = (k: 'sound' | 'ai') => set(x => ({ ...x, settings: { ...x.settings, [k]: !x.settings[k] } }))
+  const settings = (k: 'sound' | 'ai' | 'voice') => set(x => ({ ...x, settings: { ...x.settings, [k]: !x.settings[k] } }))
 
   return (
     <Screen title="Progress" tone="sky" deco={['gem', 'sunny']} sub={user ? (offline ? 'Offline · syncs later' : user.email) : undefined}
@@ -75,11 +80,14 @@ export default function Progress({ nav }: { nav: Nav }) {
         </div>
       </Group>
 
-      <Group header="By topic">
+      <Group header="By topic" footer="The knowledge level from 1 to 5 comes from which tasks you solve and how hard they are.">
         {TOPICS.map(t => {
           const m = topicMastery(s, t.id)
           const look = TOPIC_LOOK[t.id]
-          return <Row key={t.id} lead={<Shape kind={look.shape} size={38} fill={`var(--${look.tone}-c)`}><span style={{ fontSize: 11, fontWeight: 800, color: `var(--on-${look.tone})` }}>{Math.round(m * 100)}</span></Shape>} title={t.title} value={`${Math.round(m * 100)} %`} onClick={() => nav.lesson(t.id)} />
+          const seen = CONCEPTS.filter(c => c.topic === t.id && (s.abil?.[c.id] || s.mem[c.id]))
+          const lvl = seen.length ? seen.reduce((x, c) => x + levelOfConcept(c.id), 0) / seen.length : 0
+          return <Row key={t.id} lead={<Shape kind={look.shape} size={38} fill={`var(--${look.tone}-c)`}><span style={{ fontSize: 11, fontWeight: 800, color: `var(--on-${look.tone})` }}>{Math.round(m * 100)}</span></Shape>} title={t.title}
+            sub={seen.length ? `Knowledge level ${fmt1(lvl)}/5 · ${seen.length} of ${CONCEPTS.filter(c => c.topic === t.id).length} concepts checked` : 'Not checked yet'} value={`${Math.round(m * 100)} %`} onClick={() => nav.lesson(t.id)} />
         })}
       </Group>
 
@@ -107,6 +115,7 @@ export default function Progress({ nav }: { nav: Nav }) {
 
       <Group header="Settings">
         <Row icon={<Volume2 size={17} />} tint="var(--coral)" title="Sound on answer" right={<Toggle on={s.settings.sound} />} onClick={() => settings('sound')} chevron={false} />
+        <Row icon={<AudioLines size={17} />} tint="var(--violet)" title="Read explanations aloud" sub="An explanation reads itself when it appears" right={<Toggle on={!!s.settings.voice} />} onClick={() => settings('voice')} chevron={false} />
         <Row icon={<KeyRound size={16} />} tint="var(--violet, var(--ink))" title="AI key" value={llm ? PROVIDERS[llm.provider].name : 'Off'} onClick={() => setKeySheet(true)} />
         <Row icon={<Sparkles size={17} />} tint="var(--ink)" title="AI grading and tasks" right={<Toggle on={s.settings.ai} />} onClick={() => settings('ai')} chevron={false} />
         <Row icon={<Hash size={17} />} tint="var(--sky)" title="New concepts per session"
@@ -119,10 +128,14 @@ export default function Progress({ nav }: { nav: Nav }) {
             <Row icon={<Pencil size={16} />} tint="var(--amber)" title="Name" value={user.name} onClick={() => setEdit('name')} />
             <Row icon={<Trash size={16} />} tint="var(--amber)" title="Reset progress" danger onClick={() => { if (window.confirm('Really delete all progress in this browser?')) resetAll() }} chevron={false} />
           </Group>
+          <Group>
+            <Row icon={<History size={16} />} tint="var(--violet)" title="Version history" value={CURRENT} onClick={() => setVh(true)} />
+          </Group>
         </div>
       )}
       <div className="cap" style={{ textAlign: 'center', marginTop: 22 }}>Bios · Živa design language · XTRSlab · open source</div>
 
+      <VersionsSheet open={vh} onClose={() => setVh(false)} />
       <AccountSheet mode={edit} onClose={() => setEdit('')} name={user?.name ?? ''} />
       <AiKeySheet open={keySheet} onClose={() => setKeySheet(false)} />
     </Screen>

@@ -1,10 +1,12 @@
 import { useSyncExternalStore } from 'react'
 import { review, type Grade, type Mem } from './fsrs'
 import type { Task, TaskType } from '../data/bank'
+import { updateAbil, abilityOf, fsrsGrade, type Abil } from './adapt'
 
 export interface DayStat { n: number; ok: number; xp: number; ms: number }
-export interface Settings { sound: boolean; ai: boolean; name: string; newPerSession: number }
+export interface Settings { sound: boolean; ai: boolean; name: string; newPerSession: number; voice?: boolean }
 export interface Miss { n: number; at: number; fixed?: number }
+export interface TStat { n: number; ok: number; last: number; lastOk: 0 | 1 }
 export interface TestResult { at: number; pct: number; grade: number; n: number; topic?: string }
 
 export interface State {
@@ -19,6 +21,12 @@ export interface State {
   learned: Record<string, number> // concept -> when it was first introduced
   /** mistake notebook: task -> how many times wrong, when last, when fixed */
   misses?: Record<string, Miss>
+  /** knowledge level per concept (1 to 5, Elo) */
+  abil?: Record<string, Abil>
+  /** results per task: n, correct, last time, last result */
+  tstat?: Record<string, TStat>
+  /** last task type per concept (for variety) */
+  ctype?: Record<string, TaskType>
   arena?: { games: number; hist: { at: number; place: number; of: number; pts: number; correct: number; n: number; dr: number }[] }
   updated: number
 }
@@ -82,11 +90,20 @@ export const dayKey = (t = Date.now()) => {
 }
 
 // Records an answer: FSRS only on the first encounter of the concept in a session (firstInSession), otherwise a short boost.
-export function record(opts: { task: Task; concepts: string[]; grade: Grade; ms: number; firstInSession: Set<string>; xp?: number }) {
-  const { task, concepts, grade, ms, firstInSession } = opts
-  const ok = grade >= 2
+export function record(opts: { task: Task; concepts: string[]; grade: Grade; ms: number; firstInSession: Set<string>; xp?: number; diff?: number; idk?: boolean }) {
+  const { task, concepts, ms, firstInSession } = opts
+  const ok = opts.grade >= 2 && !opts.idk
   set(s => {
     const mem = { ...s.mem }
+    const abil = { ...s.abil }
+    const d = opts.diff ?? 2.5
+    // the level is updated for every concept of the task (the main concept fully, the others by half)
+    concepts.forEach((c, i) => {
+      const th0 = abilityOf(c, s.abil, s.mem[c])
+      const nx = updateAbil(abil[c], th0, d, ok, opts.idk)
+      abil[c] = i === 0 ? nx : { th: (th0 + nx.th) / 2, n: nx.n }
+    })
+    const grade = fsrsGrade(opts.grade, ok, abilityOf(concepts[0], s.abil, s.mem[concepts[0]]), d, s.mem[concepts[0]], opts.idk)
     concepts.forEach(c => {
       if (!firstInSession.has(c)) {
         mem[c] = review(mem[c], grade)
@@ -96,7 +113,8 @@ export function record(opts: { task: Task; concepts: string[]; grade: Grade; ms:
       }
     })
     const k = dayKey()
-    const d = s.days[k] ?? { n: 0, ok: 0, xp: 0, ms: 0 }
+    const day = s.days[k] ?? { n: 0, ok: 0, xp: 0, ms: 0 }
+    const ts = s.tstat?.[task.id]
     const ty = s.types[task.t] ?? { n: 0, ok: 0 }
     // mistake notebook: a wrong answer records the task, a correct answer to a recorded task marks it as fixed
     let misses = s.misses
@@ -106,9 +124,11 @@ export function record(opts: { task: Task; concepts: string[]; grade: Grade; ms:
     else if (!ok) misses = trimMisses({ ...misses, [task.id]: { n: (prev?.n ?? 0) + 1, at: Date.now() } })
     else if (prev && !prev.fixed) misses = { ...misses, [task.id]: { ...prev, fixed: Date.now() } }
     return {
-      ...s, mem, misses,
+      ...s, mem, misses, abil,
+      tstat: { ...s.tstat, [task.id]: { n: (ts?.n ?? 0) + 1, ok: (ts?.ok ?? 0) + (ok ? 1 : 0), last: Date.now(), lastOk: ok ? 1 : 0 } },
+      ctype: { ...s.ctype, [concepts[0]]: task.t },
       seenTask: { ...s.seenTask, [task.id]: Date.now() },
-      days: { ...s.days, [k]: { n: d.n + 1, ok: d.ok + (ok ? 1 : 0), xp: d.xp + (opts.xp ?? (ok ? 10 : 2)), ms: d.ms + Math.min(ms, 180000) } },
+      days: { ...s.days, [k]: { n: day.n + 1, ok: day.ok + (ok ? 1 : 0), xp: day.xp + (opts.xp ?? (ok ? 10 : 2)), ms: day.ms + Math.min(ms, 180000) } },
       types: { ...s.types, [task.t]: { n: ty.n + 1, ok: ty.ok + (ok ? 1 : 0) } },
     }
   })
@@ -193,9 +213,13 @@ function merge(local: State, remote: State): State {
   }
   const la = local.arena, ra = remote.arena
   const arena = !la ? ra : !ra ? la : la.games >= ra.games ? la : ra
+  const abil: Record<string, Abil> = { ...remote.abil }
+  for (const [k, a] of Object.entries(local.abil ?? {})) if (!abil[k] || a.n >= abil[k].n) abil[k] = a
+  const tstat: Record<string, TStat> = { ...remote.tstat }
+  for (const [k, t] of Object.entries(local.tstat ?? {})) if (!tstat[k] || t.last >= tstat[k].last) tstat[k] = t
   return {
     ...local,
-    misses, arena,
+    misses, arena, abil, tstat, ctype: { ...remote.ctype, ...local.ctype },
     mem: mergeMem(local.mem, remote.mem),
     seenTask: { ...remote.seenTask, ...local.seenTask },
     learned: { ...remote.learned, ...local.learned },

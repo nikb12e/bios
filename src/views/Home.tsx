@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { WhatsNew } from './Versions'
 import { motion } from 'motion/react'
 import { Glossary } from './Notebook'
 import { ResumeCard } from './Resume'
@@ -45,6 +46,7 @@ export default function Home({ nav }: { nav: Nav }) {
         <button onClick={() => nav.tab('napredek')} aria-label="Profile"><Avatar name={user?.name ?? 'B'} src={user?.picture} size={42} /></button>
       </div>}>
 
+      <WhatsNew />
       <ResumeCard nav={nav} />
       <div className="bento">
         <motion.button {...pop(0)} className="tile t-ink span2 hero-tile" data-morph onClick={() => nav.start({ mode: 'smart' }, 'Today\'s training')}>
@@ -113,7 +115,7 @@ export default function Home({ nav }: { nav: Nav }) {
         ))}
       </div>
 
-      <SH action={<span className="a">from the Cell.pdf notes</span>}>Topics</SH>
+      <SH action={<span className="a">from your notes</span>}>Topics</SH>
       <div className="topics">
         {TOPICS.map((t, i) => {
           const m = topicMastery(s, t.id)

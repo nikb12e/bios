@@ -20,7 +20,7 @@ export function LocateTask({ task, done, onAnswer }: TaskProps<T<'locate'>>) {
     setGood(task.target)
     if (!ok) setBad(id)
     const o = ORG[task.target]
-    onAnswer({ ok, grade: ok ? 3 : 1, msg: <><b>{o.name}</b>: {o.short}</>, answer: ok ? undefined : <>You tapped: {partName(id)}</> })
+    onAnswer({ ok, grade: ok ? 3 : 1, msg: <><b>{o.name}</b>: {o.short}</>, answer: ok ? undefined : <>You tapped: {partName(id)}</>, given: partName(id) })
   }
   return (
     <div>

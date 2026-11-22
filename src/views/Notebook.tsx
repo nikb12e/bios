@@ -33,7 +33,7 @@ export function taskAnswer(t: Task): string | null {
     case 'mc': return t.opts[t.a]
     case 'tf': return t.a ? 'True.' : `False.${t.fix ? ' ' + t.fix.opts[t.fix.a] : ''}`
     case 'type': return t.a[0]
-    case 'odd': return `${t.items[t.a]}. ${t.why}`
+    case 'odd': return `${t.items[t.a].replace(/\.$/, '')}. ${t.why}`
     case 'cloze': return (t.text.match(/\{([^}]+)\}/g) ?? []).map(x => x.slice(1, -1)).join(', ')
     case 'fix': return (t.text.match(/\[[^|\]]+\|([^\]]+)\]/g) ?? []).map(x => x.replace(/\[[^|\]]+\|([^\]]+)\]/, '$1')).join(', ')
     case 'order': return t.items.join(' → ')

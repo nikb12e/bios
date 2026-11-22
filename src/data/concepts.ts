@@ -2,8 +2,9 @@
 // text: what the notes say; q: the question for an oral explanation; kp: the key points the AI grades against.
 
 import type { OrgId } from './organelles'
+import { CONCEPTS2 } from './concepts2'
 
-export type TopicId = 'osnove' | 'teorija' | 'organeli' | 'ovoj' | 'primerjava' | 'mikroskop'
+export type TopicId = 'uvod' | 'znanost' | 'osnove' | 'teorija' | 'organeli' | 'ovoj' | 'primerjava' | 'prehajanje' | 'mikroskop' | 'lab'
 
 export interface Concept {
   id: string
@@ -16,7 +17,7 @@ export interface Concept {
   page: number | string
 }
 
-export const CONCEPTS: Concept[] = [
+const BASE: Concept[] = [
   // 1. The cell and types of cells
   { id: 'celica.def', topic: 'osnove', page: 1, label: 'What a cell is',
     text: 'The cell is the basic structural and functional unit of living things.',
@@ -211,6 +212,8 @@ export const CONCEPTS: Concept[] = [
     text: '1 mm = 1000 µm, 1 µm = 1000 nm.' },
 ]
 
+export const CONCEPTS: Concept[] = [...BASE, ...CONCEPTS2]
+
 export const CON: Record<string, Concept> = Object.fromEntries(CONCEPTS.map(c => [c.id, c]))
 
 export interface Topic {
@@ -219,15 +222,21 @@ export interface Topic {
   sub: string
   pages: string
   tint: string // colour from the organelle palette
+  /** source: the notes this topic comes from */
+  src: string
 }
 
 export const TOPICS: Topic[] = [
-  { id: 'osnove', title: 'The cell and types of cells', sub: 'Definition, prokaryotes and eukaryotes, cytoplasm', pages: 'p. 1 to 3', tint: 'var(--o-jedro)' },
-  { id: 'teorija', title: 'Cell theory', sub: 'Milestones, microscopes, TEM and SEM', pages: 'p. 4', tint: 'var(--o-golgi)' },
-  { id: 'organeli', title: 'Organelles', sub: 'ER, ribosomes, Golgi, nucleus, mitochondrion, chloroplast ...', pages: 'p. 5 to 10', tint: 'var(--o-mito)' },
-  { id: 'ovoj', title: 'Cytoskeleton, membrane, wall', sub: 'Cytoskeleton, cilia, fluid mosaic, cellulose', pages: 'p. 10 to 12', tint: 'var(--o-zer)' },
-  { id: 'primerjava', title: 'Plant and animal', sub: 'Five differences you need to know', pages: 'p. 13', tint: 'var(--o-kloro)' },
-  { id: 'mikroskop', title: 'Light microscope', sub: 'Parts, magnification, units', pages: 'earlier lessons', tint: 'var(--o-centri)' },
+  { id: 'uvod', title: 'Introduction to biology', sub: 'The science, life, branches, concepts, evolution', pages: 'p. 1 to 6', tint: 'var(--o-kloro)', src: 'Introduction to biology' },
+  { id: 'znanost', title: 'Science and research', sub: 'Hypothesis, data, experiment, theory, law', pages: 'p. 1 to 3', tint: 'var(--o-ger)', src: 'Science and research' },
+  { id: 'osnove', title: 'The cell and types of cells', sub: 'Definition, prokaryotes and eukaryotes, cytoplasm', pages: 'p. 1 to 3', tint: 'var(--o-jedro)', src: 'The cell' },
+  { id: 'teorija', title: 'Cell theory', sub: 'Milestones, microscopes, TEM and SEM', pages: 'p. 4', tint: 'var(--o-golgi)', src: 'The cell' },
+  { id: 'organeli', title: 'Organelles', sub: 'ER, ribosomes, Golgi, nucleus, mitochondrion, chloroplast ...', pages: 'p. 5 to 10', tint: 'var(--o-mito)', src: 'The cell' },
+  { id: 'ovoj', title: 'Cytoskeleton, membrane, wall', sub: 'Cytoskeleton, cilia, fluid mosaic, cellulose', pages: 'p. 10 to 12', tint: 'var(--o-zer)', src: 'The cell' },
+  { id: 'primerjava', title: 'Plant and animal', sub: 'Five differences you need to know', pages: 'p. 13', tint: 'var(--o-kloro)', src: 'The cell' },
+  { id: 'prehajanje', title: 'Transport across membranes', sub: 'Passive and active transport, osmosis, plasmolysis', pages: 'p. 1 to 3 · Lab 5', tint: 'var(--o-vak)', src: 'Transport across membranes' },
+  { id: 'mikroskop', title: 'The microscope', sub: 'Parts, magnification, inverted image, cell size', pages: 'Lab 2 to 4', tint: 'var(--o-centri)', src: 'Lab work' },
+  { id: 'lab', title: 'Lab work', sub: 'Equipment, safety, GHS, slides, drawings', pages: 'Lab 1 and 2', tint: 'var(--o-lizo)', src: 'Lab work' },
 ]
 
 export const TOP: Record<TopicId, Topic> = Object.fromEntries(TOPICS.map(t => [t.id, t])) as Record<TopicId, Topic>

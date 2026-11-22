@@ -1,8 +1,8 @@
+import { sfx } from './sfx'
 import { useEffect, useRef, useState, type ReactNode, type CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion, animate, useInView, useReducedMotion } from 'motion/react'
 import { X, ChevronRight, ChevronLeft } from 'lucide-react'
-import { get } from '../engine/store'
 import { Shape, type ShapeKind } from './flux'
 
 export const spring = { type: 'spring' as const, bounce: 0, duration: 0.42 }
@@ -66,27 +66,8 @@ export function Seg<T extends string>({ value, options, onChange }: { value: T; 
   )
 }
 
-/* sound: a small, soft confirmation (WebAudio, no files) */
-let ac: AudioContext | undefined
-export function sound(kind: 'good' | 'bad' | 'tap' | 'done') {
-  if (!get().settings.sound) return
-  try {
-    ac = ac ?? new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
-    const t = ac.currentTime
-    const seq: [number, number][] = kind === 'good' ? [[659.3, 0], [987.8, 0.07]] : kind === 'bad' ? [[220, 0], [196, 0.09]] : kind === 'done' ? [[523.3, 0], [659.3, 0.08], [784, 0.16], [1046.5, 0.24]] : [[880, 0]]
-    seq.forEach(([f, d]) => {
-      const o = ac!.createOscillator(), g = ac!.createGain()
-      o.type = kind === 'bad' ? 'triangle' : 'sine'
-      o.frequency.value = f
-      g.gain.setValueAtTime(0.0001, t + d)
-      g.gain.exponentialRampToValueAtTime(kind === 'tap' ? 0.03 : 0.07, t + d + 0.012)
-      g.gain.exponentialRampToValueAtTime(0.0001, t + d + (kind === 'done' ? 0.3 : 0.18))
-      o.connect(g).connect(ac!.destination)
-      o.start(t + d); o.stop(t + d + 0.35)
-    })
-  } catch { /* no sound */ }
-  if (kind !== 'tap' && 'vibrate' in navigator) navigator.vibrate?.(kind === 'bad' ? [18, 40, 18] : 12)
-}
+/* sound: hands over to the sound engine (src/ui/sfx.ts) */
+export function sound(kind: 'good' | 'bad' | 'tap' | 'done') { sfx(kind) }
 
 export function useAutoFocus<T extends HTMLElement>(on = true) {
   const r = useRef<T>(null)
@@ -281,4 +262,8 @@ export const TOPIC_LOOK: Record<string, { tone: Tone; shape: ShapeKind }> = {
   ovoj: { tone: 'sky', shape: 'clover' },
   primerjava: { tone: 'green', shape: 'sunny' },
   mikroskop: { tone: 'pink', shape: 'blob' },
+  uvod: { tone: 'green', shape: 'clover' },
+  znanost: { tone: 'amber', shape: 'sunny' },
+  prehajanje: { tone: 'sky', shape: 'blob' },
+  lab: { tone: 'violet', shape: 'gem' },
 }

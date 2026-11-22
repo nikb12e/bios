@@ -1,16 +1,21 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import { X, Check, ArrowRight, Flame, Sparkles, BookOpen, RotateCcw, Lightbulb, Play } from 'lucide-react'
+import { X, Check, ArrowRight, Flame, Sparkles, BookOpen, RotateCcw, Lightbulb, Play, HelpCircle, Target } from 'lucide-react'
 import type { Task } from '../data/bank'
 import { TYPE_INFO } from '../data/bank'
 import { CON, TOP } from '../data/concepts'
 import { ORG, type DetailId, type OrgId } from '../data/organelles'
-import { buildSession, similarTask, allTasks, type Item, type SessionOpts } from '../engine/gen'
+import { buildSession, followUp, repickFor, diffOf, levelOfConcept, type Item, type SessionOpts } from '../engine/gen'
+import { pSuccess, diffLabel, fmt1 } from '../engine/adapt'
+import { taskAnswer, taskPrompt } from './Notebook'
+import { ExplainCard } from './Explain'
+import { sfx } from '../ui/sfx'
+import { queueStat, requestFill } from '../engine/bank'
 import { record, markLearned, get, set, useStore, saveSession, clearSession, flushRemote, type SavedSession } from '../engine/store'
 import { level, LEVEL_NAME, mastery } from '../engine/fsrs'
 import { TaskView } from '../tasks'
 import type { Result } from '../tasks/shared'
-import { sound, Ring, useWide, Kbd, CountUp } from '../ui/kit'
+import { Ring, useWide, Kbd, CountUp } from '../ui/kit'
 import { Shape, WavyRing, burst, burstFrom, originClip, FULL_CLIP } from '../ui/flux'
 import { CellView } from '../art/Cells'
 import { DetailView } from '../art/Details'
@@ -34,6 +39,35 @@ export function ConceptVisual({ id }: { id: string }) {
   if (v.detail) return <div className="stage" style={{ padding: 8 }}><DetailView id={v.detail} mode="study" /></div>
   if (v.cell) return <div className="stage" style={{ padding: 8 }}><CellView kind={v.cell} focus={v.org ?? null} labels={!v.org} /></div>
   return null
+}
+
+export const hasConceptVisual = (id: string) => !!(CONCEPT_VISUAL[id] ?? CON[id]?.org)
+
+// task difficulty 1 to 5 and your chance of success
+function DiffBadge({ d, th }: { d: number; th: number }) {
+  if (!d) return null
+  const p = Math.round(pSuccess(th, d) * 100)
+  const lv = Math.max(1, Math.min(5, Math.round(d)))
+  return (
+    <span className={`diff d${lv}`} title={`${diffLabel(d)} · difficulty ${fmt1(d)} of 5 · your chance of success about ${p} %`} aria-label={`Difficulty ${fmt1(d)} of 5`}>
+      <DiffBars d={d} />
+      <b>{fmt1(d)}</b>
+    </span>
+  )
+}
+
+// short correct answer (without the explanation, which is in the why field)
+function shortAnswer(t: Task): string | null {
+  if (t.t === 'odd') return t.items[t.a]
+  if (t.t === 'cloze') return t.text.replace(/\{([^}]+)\}/g, '$1')
+  if (t.t === 'fix') return t.text.replace(/\[[^|\]]+\|([^\]]+)\]/g, '$1')
+  if (t.t === 'tf') return t.a ? `True: ${t.s}` : t.fix ? `False. ${t.fix.opts[t.fix.a]}` : `False: ${t.s}`
+  return taskAnswer(t)
+}
+
+function DiffBars({ d }: { d: number }) {
+  const lv = Math.max(1, Math.min(5, Math.round(d)))
+  return <span className={`bars d${lv}`}>{[1, 2, 3, 4, 5].map(i => <i key={i} className={i <= lv ? 'on' : ''} />)}</span>
 }
 
 function LearnCard({ id, onNext }: { id: string; onNext: () => void }) {
@@ -71,7 +105,7 @@ function Foot2({ children }: { children: ReactNode }) {
 import { createPortal } from 'react-dom'
 const createPortalSafe = (c: ReactNode, el: HTMLElement) => createPortal(c, el)
 
-interface Log { task: Task; ok: boolean; grade: number }
+interface Log { task: Task; ok: boolean; grade: number; d?: number; th?: number; idk?: boolean }
 
 export default function Session({ opts, title, onClose, items: preset, resume }: SessionProps) {
   const [items, setItems] = useState<Item[]>(() => (resume?.items as Item[] | undefined) ?? preset ?? buildSession(opts))
@@ -114,70 +148,117 @@ export default function Session({ opts, title, onClose, items: preset, resume }:
     b?.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior })
   }, [i])
 
+  const explained = useRef(new Set<string>())
+  // a session must not grow without limit: at most half again as many tasks and five explanations
+  const baseN = useRef(items.filter(x => x.kind === 'task').length)
+  const extra = useRef(0)
+  const follow = useRef<Record<string, number>>({})
+  const finalRound = useRef(false)
+  const streak = useRef(0)
+  const lvBefore = useRef<Record<string, number>>({})
+  const [ab, setAb] = useState<{ from: number; to: number; d: number } | null>(null)
+  const curDiff = cur?.kind === 'task' ? diffOf(cur.task) : 0
+  const curTh = cur?.kind === 'task' ? levelOfConcept(cur.task.c[0]) : 0
+
+  useEffect(() => { if (opts.mode !== 'test') requestFill(opts.topic) }, [])
+
   const onAnswer = (r: Result) => {
-    if (!cur || cur.kind !== 'task') return
+    if (!cur || cur.kind !== 'task' || res) return
     const ms = Date.now() - t0.current
+    const c = cur.task.c[0]
+    const d = diffOf(cur.task)
+    const th = levelOfConcept(c)
+    if (lvBefore.current[c] === undefined) lvBefore.current[c] = th
+    const ok = r.ok && !r.idk
     let grade = r.grade
-    if (r.ok && grade === 3 && ms < 6000 && ['mc', 'tf', 'locate', 'identify', 'type'].includes(cur.task.t) && !cur.retry) grade = 4
-    record({ task: cur.task, concepts: cur.task.c, grade, ms, firstInSession: first.current, xp: r.ok ? (cur.retry ? 4 : 10 + (TYPE_INFO[cur.task.t].tier - 1) * 5) : 2 })
-    sound(r.ok ? 'good' : 'bad')
-    // closes the keyboard on phones so the Next button is not hidden under it
+    if (ok && grade === 3 && ms < 6000 && ['mc', 'tf', 'locate', 'identify', 'type'].includes(cur.task.t) && !cur.retry) grade = 4
+    // state before recording: the concept's last results (to notice when you struggle)
+    const m = get().mem[c]
+    const lv = level(m)
+    const priorMiss = (m?.hist ?? []).slice(-3).filter(x => !x).length
+    const sessMiss = log.filter(l => !l.ok && l.task.c[0] === c).length + (ok ? 0 : 1)
+    record({ task: cur.task, concepts: cur.task.c, grade, ms, firstInSession: first.current, diff: d, idk: r.idk, xp: ok ? (cur.retry ? 4 : Math.round(6 + d * 4)) : 2 })
+    streak.current = ok ? streak.current + 1 : 0
+    if (!cur.retry) queueStat(cur.task.id, ok)
+    setAb({ from: th, to: levelOfConcept(c), d })
+    if (r.idk) sfx('idk'); else if (ok) sfx('good', { streak: streak.current, hard: d - th >= 0.8 }); else sfx('bad')
     ;(document.activeElement as HTMLElement | null)?.blur?.()
-    if (r.ok) setTimeout(() => burstFrom(document.querySelector('.s-inner .opt.good, .s-inner .good') ?? document.querySelector('.fbs .fbi'), 16), 90)
+    if (ok) setTimeout(() => burstFrom(document.querySelector('.s-inner .opt.good, .s-inner .good') ?? document.querySelector('.fbs .fbi'), d >= 3.5 ? 26 : 16), 90)
     setRes(r)
-    if (r.ok) setXp({ n: cur.retry ? 4 : 10 + (TYPE_INFO[cur.task.t].tier - 1) * 5, k: Date.now() })
-    const nl = [...log, { task: cur.task, ok: r.ok, grade }]
+    if (ok) setXp({ n: cur.retry ? 4 : Math.round(6 + d * 4), k: Date.now() })
+    const nl = [...log, { task: cur.task, ok, grade, d, th, idk: r.idk }]
     setLog(nl)
     // flow: the last 5 answers
     const last = nl.slice(-5)
+    let fl = flow
     if (last.length >= 4) {
       const acc = last.filter(x => x.ok).length / last.length
-      setFlow(acc >= 0.9 ? 1 : acc <= 0.5 ? -1 : 0)
+      fl = acc >= 0.9 ? 1 : acc <= 0.5 ? -1 : 0
+      setFlow(fl)
     }
-    // mistake: the same task in 3, a similar one in 6
-    if (!r.ok && !cur.retry && opts.mode !== 'test') {
-      setItems(arr => {
-        const a = [...arr]
-        a.splice(Math.min(a.length, i + 4), 0, { kind: 'task', task: cur.task, key: cur.task.id + ':r', retry: true, label: 'Again' })
-        const sim = similarTask(cur.task, used.current)
-        if (sim) { used.current.add(sim.id); a.splice(Math.min(a.length, i + 7), 0, { kind: 'task', task: sim, key: sim.id, label: 'Similar' }) }
-        return a
-      })
-    }
+    if (ok || opts.mode === 'test') return
+    // mistake: when the app notices you are struggling, an explanation comes; otherwise the same concept in another format a few tasks later
+    const struggle = !!r.idk || sessMiss >= 2 || ((lv === 'nov' || lv === 'ucim') && priorMiss >= 1) || (d <= 2.3 && lv !== 'obvladam') || fl === -1
+    const room = extra.current < Math.max(4, Math.ceil(baseN.current * 0.5))
+    setItems(arr => {
+      const a = [...arr]
+      if (struggle && !explained.current.has(c) && explained.current.size < 5) {
+        explained.current.add(c)
+        const ans = shortAnswer(cur.task)
+        a.splice(i + 1, 0, { kind: 'explain', concept: c, key: 'ex:' + c + ':' + i, ctx: { taskId: cur.task.id, prompt: taskPrompt(cur.task), chosen: r.idk ? undefined : r.given, correct: ans ?? undefined, idk: r.idk, misses: sessMiss } })
+        const chk = followUp(cur.task, used.current, opts, 0.8)
+        if (chk && room) { extra.current++; used.current.add(chk.id); a.splice(Math.min(a.length, i + 3), 0, { kind: 'task', task: chk, key: chk.id + ':chk', label: 'Check your understanding', check: true }) }
+      } else if ((follow.current[c] ?? 0) < 2 && room) {
+        follow.current[c] = (follow.current[c] ?? 0) + 1
+        const f = followUp(cur.task, used.current, opts, 0.72)
+        if (f) { extra.current++; used.current.add(f.id); a.splice(Math.min(a.length, i + 3), 0, { kind: 'task', task: f, key: f.id + ':f', label: 'Another way' }) }
+      }
+      return a
+    })
+  }
+
+  // "I don't know": counts as a mistake, shows the answer right away and opens an explanation
+  const idk = () => {
+    if (!cur || cur.kind !== 'task' || res) return
+    const ans = shortAnswer(cur.task)
+    onAnswer({ ok: false, grade: 1, idk: true, title: 'No problem, let\'s explain', answer: ans ?? undefined, msg: (cur.task as { why?: string }).why })
   }
 
   const next = () => {
     setRes(null)
-    // adjust the next task according to the flow
     setItems(arr => {
-      const nx = arr[i + 1]
-      if (!nx || nx.kind !== 'task' || nx.retry || opts.mode === 'test' || opts.mode === 'type') return arr
-      const tier = TYPE_INFO[nx.task.t].tier
-      if ((flow === 1 && tier === 1) || (flow === -1 && tier === 3)) {
-        const want = flow === 1 ? [2, 3] : [1]
-        const alt = allTasks().filter(t => t.c.includes(nx.task.c[0]) && want.includes(TYPE_INFO[t.t].tier) && !used.current.has(t.id) && (get().settings.ai || t.t !== 'explain'))
-        if (alt.length) {
-          const pick = alt[Math.floor(Math.random() * alt.length)]
-          used.current.add(pick.id)
-          const a = [...arr]
-          a[i + 1] = { kind: 'task', task: pick, key: pick.id, label: flow === 1 ? 'Challenge' : 'A bit easier' }
-          return a
-        }
+      let a = arr
+      // review round: tasks whose concept was not answered correctly by the end of the session
+      if (i + 1 >= a.length && !finalRound.current && opts.mode !== 'test') {
+        finalRound.current = true
+        const fixedC = new Set<string>()
+        const again: Item[] = []
+        ;[...log].reverse().forEach(l => {
+          const cc = l.task.c[0]
+          if (l.ok) fixedC.add(cc)
+          else if (!fixedC.has(cc) && !again.some(x => x.kind === 'task' && x.task.c[0] === cc)) again.push({ kind: 'task', task: l.task, key: l.task.id + ':end', retry: true, label: 'Review round' })
+        })
+        if (again.length) a = [...a, ...again.slice(0, 4)]
       }
-      return arr
+      const nx = a[i + 1]
+      if (!nx || nx.kind !== 'task' || nx.retry || nx.check) return a
+      const re = repickFor(nx, used.current, opts, flow)
+      if (re === nx) return a
+      const b = [...a]; b[i + 1] = re
+      return b
     })
     setI(x => x + 1)
   }
 
   const learnNext = () => {
     if (cur?.kind === 'learn') markLearned([cur.concept])
-    sound('tap')
+    sfx('tap')
     setI(x => x + 1)
   }
 
   useEffect(() => {
     if (!finished) return
-    sound('done')
+    sfx('done', { acc: log.length ? log.filter(l => l.ok).length / log.length : 0 })
     if (opts.mode === 'test' && log.length) {
       const pct = log.filter(l => l.ok).length / log.length
       const grade = pct >= 0.89 ? 5 : pct >= 0.76 ? 4 : pct >= 0.63 ? 3 : pct >= 0.5 ? 2 : 1
@@ -206,6 +287,7 @@ export default function Session({ opts, title, onClose, items: preset, resume }:
       }
       if (typing || e.metaKey || e.ctrlKey || e.altKey) return
       const k = e.key.toLowerCase()
+      if (k === '?' || k === 'n') { const b = document.querySelector<HTMLButtonElement>('.s-foot .idk'); if (b) { e.preventDefault(); b.click() } return }
       const idx = /^[1-9]$/.test(k) ? Number(k) - 1 : 'abcd'.indexOf(k)
       if (idx < 0) return
       const opts = [...document.querySelectorAll<HTMLButtonElement>('.s-inner button.opt')].filter(b => !b.disabled && b.offsetParent)
@@ -230,18 +312,19 @@ export default function Session({ opts, title, onClose, items: preset, resume }:
         <div className="s-inner">
           <AnimatePresence mode="popLayout" initial={false}>
             <motion.div key={showEnd ? 'end' : cur?.key + ':' + i} initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -40 }} transition={{ type: 'spring', bounce: 0, duration: 0.34 }}>
-              {showEnd ? <Summary isTest={opts.mode === 'test'} log={log} title={title} startMem={startMem.current} onClose={end}
+              {showEnd ? <Summary isTest={opts.mode === 'test'} log={log} title={title} startMem={startMem.current} lvBefore={lvBefore.current} onClose={end}
                 stopped={stopped && !finished ? { at: i, total } : undefined} onResume={() => setStopped(false)} onRetry={() => {
                 const wrong = log.filter(l => !l.ok).map(l => l.task)
                 const uniq = wrong.filter((t, k) => wrong.findIndex(x => x.id === t.id) === k)
                 first.current = new Set(); setLog([]); setI(0); setStopped(false)
                 setItems(uniq.map(t => ({ kind: 'task', task: t, key: t.id + ':again' })))
-              }} /> : cur.kind === 'learn' ? <LearnCard id={cur.concept} onNext={learnNext} /> : (
+              }} /> : cur.kind === 'learn' ? <LearnCard id={cur.concept} onNext={learnNext} /> : cur.kind === 'explain' ? <ExplainCard concept={cur.concept} ctx={cur.ctx} onNext={learnNext} /> : (
                 <>
                   <div className="qtype">
                     <span className="fn" style={{ fontWeight: 600, color: 'var(--ink-2)' }}>{TYPE_INFO[cur.task.t].name}</span>
-                    {cur.label && <span className={`badge ${cur.label === 'Challenge' ? 'accent' : 'warn'}`}>{cur.label === 'Challenge' ? <Flame size={12} /> : cur.label === 'Again' ? <RotateCcw size={12} /> : null}{cur.label}</span>}
+                    {cur.label && <span className={`badge ${cur.label === 'Challenge' || cur.label === 'Check what you know' ? 'accent' : 'warn'}`}>{cur.label === 'Challenge' ? <Flame size={12} /> : cur.label === 'Review round' || cur.label === 'Another way' ? <RotateCcw size={12} /> : cur.label === 'Check what you know' ? <Target size={12} /> : null}{cur.label}</span>}
                     {cur.task.id.startsWith('ai:') && <span className="badge accent"><Sparkles size={12} /> AI</span>}
+                    <DiffBadge d={curDiff} th={curTh} />
                   </div>
                   <motion.div animate={res ? (res.ok ? { scale: [1, 1.015, 1] } : { x: [0, -8, 8, -5, 5, 0] }) : { x: 0, scale: 1 }} transition={{ duration: res?.ok ? 0.32 : 0.4 }}>
                     <TaskView key={cur.key + i} task={cur.task} done={!!res} onAnswer={onAnswer} />
@@ -266,13 +349,24 @@ export default function Session({ opts, title, onClose, items: preset, resume }:
                 </div>
                 {res.answer && <div className="ans">{!res.ok && <b>Correct: </b>}{res.answer}</div>}
                 {res.msg && <div className="why">{res.msg}</div>}
-                <div className="cap src"><BookOpen size={12} /> {CON[cur.task.c[0]] ? `Notes, p. ${CON[cur.task.c[0]].page} · ${CON[cur.task.c[0]].label}` : 'Notes'}</div>
+                {ab && (
+                  <div className="fb-meta">
+                    <span><DiffBars d={ab.d} /> {diffLabel(ab.d)} · {fmt1(ab.d)}/5</span>
+                    <span className={ab.to >= ab.from ? 'up' : 'down'}>Concept level {fmt1(ab.from)} → <b>{fmt1(ab.to)}</b></span>
+                  </div>
+                )}
+                <div className="cap src"><BookOpen size={12} /> {CON[cur.task.c[0]] ? `${TOP[CON[cur.task.c[0]].topic].src}, ${/^\d/.test(String(CON[cur.task.c[0]].page)) ? 'p. ' : ''}${CON[cur.task.c[0]].page} · ${CON[cur.task.c[0]].label}` : 'Notes'}</div>
                 <button className={`btn full ${res.ok ? 'good' : 'bad'}`} style={{ marginTop: 14 }} onClick={next} autoFocus>Next{wide && <Kbd>Enter</Kbd>}</button>
               </div>
             </motion.div>
           ) : (
             <motion.div key="pad" className="pad" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, transition: { duration: 0.1 } }}>
-              <div className="inner"><div id="s-foot-slot" style={{ display: showEnd ? 'none' : undefined }} /></div>
+              <div className="inner">
+                <div id="s-foot-slot" style={{ display: showEnd ? 'none' : undefined }} />
+                {cur?.kind === 'task' && !showEnd && !res && cur.task.t !== 'recall' && (
+                  <button className="idk" onClick={idk}><HelpCircle size={16} /> I don't know{wide && <Kbd>N</Kbd>}</button>
+                )}
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
@@ -285,7 +379,7 @@ const PRAISE = ['Correct', 'Excellent', 'Exactly', 'Great', 'Well done']
 const nalog = (n: number) => (n === 1 ? 'task' : 'tasks')
 const pravilnih = (_n: number) => 'correct'
 
-function Summary({ log, title, startMem, onClose, onRetry, isTest, stopped, onResume }: { log: Log[]; title: string; startMem: Record<string, string>; onClose: () => void; onRetry: () => void; isTest?: boolean; stopped?: { at: number; total: number }; onResume?: () => void }) {
+function Summary({ log, title, startMem, lvBefore, onClose, onRetry, isTest, stopped, onResume }: { log: Log[]; title: string; startMem: Record<string, string>; lvBefore: Record<string, number>; onClose: () => void; onRetry: () => void; isTest?: boolean; stopped?: { at: number; total: number }; onResume?: () => void }) {
   const mem = useStore(s => s.mem)
   const acc = log.length ? log.filter(l => l.ok).length / log.length : 0
   const testGrade = acc >= 0.89 ? 5 : acc >= 0.76 ? 4 : acc >= 0.63 ? 3 : acc >= 0.5 ? 2 : 1
@@ -293,6 +387,11 @@ function Summary({ log, title, startMem, onClose, onRetry, isTest, stopped, onRe
   const ups = concepts.filter(c => (startMem[c] ?? 'nov') !== level(mem[c]))
   const wrong = log.filter(l => !l.ok)
   const firstTry = log.filter(l => l.ok).length
+  const ds = log.filter(l => l.d).map(l => l.d as number)
+  const avgD = ds.length ? ds.reduce((a, b) => a + b, 0) / ds.length : 0
+  const hardest = log.filter(l => l.ok && l.d).reduce((m, l) => Math.max(m, l.d as number), 0)
+  const idks = log.filter(l => l.idk).length
+  const moves = Object.entries(lvBefore).map(([c, f]) => ({ c, f, t: levelOfConcept(c) })).filter(x => Math.abs(x.t - x.f) >= 0.05).sort((a, b) => (b.t - b.f) - (a.t - a.f))
   return (
     <div style={{ paddingTop: 10 }}>
       <div style={{ display: 'grid', placeItems: 'center', margin: '28px 0 34px' }}>
@@ -300,18 +399,40 @@ function Summary({ log, title, startMem, onClose, onRetry, isTest, stopped, onRe
           onAnimationComplete={() => { if (acc >= 0.6) burst(window.innerWidth / 2, 200, 22, 190) }} style={{ position: 'relative', display: 'grid', placeItems: 'center' }}>
           <Shape kind={acc >= 0.85 ? 'sunny' : acc >= 0.6 ? 'cookie' : 'blob'} size={210} spin={40} fill="var(--lime)" style={{ position: 'absolute' }} />
           <WavyRing value={acc} size={168} stroke={12} color="var(--on-lime)" track="color-mix(in srgb, var(--on-lime) 16%, transparent)">
-            <div style={{ color: 'var(--on-lime)', lineHeight: 1 }}><div className="big md"><CountUp to={Math.round(acc * 100)} duration={1.1} /><span className="unit">%</span></div><div className="cap" style={{ color: 'inherit', opacity: 0.7, marginTop: 4 }}>pravilno</div></div>
+            <div style={{ color: 'var(--on-lime)', lineHeight: 1 }}><div className="big md"><CountUp to={Math.round(acc * 100)} duration={1.1} /><span className="unit">%</span></div><div className="cap" style={{ color: 'inherit', opacity: 0.7, marginTop: 4 }}>correct</div></div>
           </WavyRing>
         </motion.div>
       </div>
       {isTest && !stopped && <div style={{ textAlign: 'center', marginBottom: 6 }}><span className="badge accent" style={{ fontSize: 15, padding: '6px 14px' }}>Grade {testGrade}</span></div>}
       <h2 className="t2" style={{ textAlign: 'center' }}>{stopped ? 'Statistics so far' : acc >= 0.85 ? 'Excellent work' : acc >= 0.6 ? 'Good, the progress is there' : 'Worth it, the mistakes are now scheduled'}</h2>
       <div className="sub" style={{ textAlign: 'center', marginTop: 4 }}>{title} · {log.length} {nalog(log.length)} · {firstTry} {pravilnih(firstTry)}</div>
+      {!stopped && ds.length > 0 && (
+        <div className="sum-stats">
+          <div><b className="num">{fmt1(avgD)}</b><span>average difficulty</span></div>
+          <div><b className="num">{hardest ? fmt1(hardest) : '0'}</b><span>hardest solved</span></div>
+          <div><b className="num">{idks}</b><span>I don't know</span></div>
+        </div>
+      )}
       {stopped && (
         <div className="sum-stats">
-          <div><b className="num">{firstTry}</b><span>pravilno</span></div>
+          <div><b className="num">{firstTry}</b><span>correct</span></div>
           <div><b className="num">{wrong.length}</b><span>wrong</span></div>
           <div><b className="num">{Math.min(stopped.at + 1, stopped.total)}/{stopped.total}</b><span>{isTest ? 'test not finished' : 'position in the session'}</span></div>
+        </div>
+      )}
+      {moves.length > 0 && (
+        <div className="sec">
+          <span className="over">How your knowledge changed</span>
+          <div className="list">
+            {moves.slice(0, 8).map(m => (
+              <div key={m.c} className="li nolead" style={{ minHeight: 50 }}>
+                <span className="grow" style={{ fontWeight: 600, fontSize: 15.5 }}>{CON[m.c]?.label}</span>
+                <span className="cap num">{fmt1(m.f)}</span>
+                <ArrowRight size={14} color="var(--ink-3)" />
+                <span className={`badge ${m.t >= m.f ? 'accent' : 'bad'}`}>{fmt1(m.t)}/5</span>
+              </div>
+            ))}
+          </div>
         </div>
       )}
       {ups.length > 0 && (

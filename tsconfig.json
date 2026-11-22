@@ -12,6 +12,7 @@
     "noUnusedParameters": false,
     "allowImportingTsExtensions": false,
     "isolatedModules": true,
+    "resolveJsonModule": true,
     "types": []
   },
   "include": ["src"]

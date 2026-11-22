@@ -27,7 +27,7 @@ export function MCTask({ task, done, onAnswer }: TaskProps<T<'mc'>>) {
     if (done || pick !== null) return
     setPick(i)
     const ok = i === task.a
-    onAnswer({ ok, grade: ok ? 3 : 1, msg: task.why, answer: ok ? undefined : task.opts[task.a] })
+    onAnswer({ ok, grade: ok ? 3 : 1, msg: task.why, answer: ok ? undefined : task.opts[task.a], given: task.opts[i] })
   }
   return (
     <div>
@@ -63,7 +63,7 @@ export function TFTask({ task, done, onAnswer }: TaskProps<T<'tf'>>) {
     setFirst(v)
     const right = v === task.a
     if (!right) {
-      onAnswer({ ok: false, grade: 1, msg: task.why ?? (task.fix ? `Correct: ${task.fix.opts[task.fix.a]}.` : undefined), answer: task.a ? 'The statement is true.' : 'The statement is false.' })
+      onAnswer({ ok: false, grade: 1, msg: task.why ?? (task.fix ? `Correct: ${task.fix.opts[task.fix.a]}.` : undefined), answer: task.a ? 'The statement is true.' : 'The statement is false.', given: task.a ? 'false' : 'true' })
     } else if (task.a || !task.fix) {
       onAnswer({ ok: true, grade: 3, msg: task.why })
     }
@@ -112,7 +112,7 @@ export function OddTask({ task, done, onAnswer }: TaskProps<T<'odd'>>) {
     if (done || pick !== null) return
     setPick(i)
     const ok = i === task.a
-    onAnswer({ ok, grade: ok ? 3 : 1, msg: task.why, answer: ok ? undefined : task.items[task.a] })
+    onAnswer({ ok, grade: ok ? 3 : 1, msg: task.why, answer: ok ? undefined : task.items[task.a], given: task.items[i] })
   }
   return (
     <div>
@@ -151,7 +151,7 @@ export function FixTask({ task, done, onAnswer }: TaskProps<T<'fix'>>) {
     if (words[i].target) setStage('replace')
     else {
       setStage('end')
-      onAnswer({ ok: false, grade: 1, msg: task.why, answer: <>The wrong word is <b>{parts.wrong}</b>, correct: <b>{parts.right}</b>.</> })
+      onAnswer({ ok: false, grade: 1, msg: task.why, answer: <>The wrong word is <b>{parts.wrong}</b>, correct: <b>{parts.right}</b>.</>, given: `picked “${words[i].t}” as the wrong word` })
     }
   }
   const replace = (o: string) => {
@@ -191,7 +191,7 @@ export function TypeTask({ task, done, onAnswer }: TaskProps<T<'type'>>) {
     setSt(m === 'no' ? 'bad' : 'good')
     if (m === 'exact') onAnswer({ ok: true, grade: 3, msg: task.why })
     else if (m === 'typo') onAnswer({ ok: true, grade: 2, title: 'Correct, watch the spelling', answer: <>Correct spelling: <b>{task.a[0]}</b></>, msg: task.why })
-    else onAnswer({ ok: false, grade: 1, answer: <b>{task.a[0]}</b>, msg: task.why })
+    else onAnswer({ ok: false, grade: 1, answer: <b>{task.a[0]}</b>, msg: task.why, given: v.trim() })
   }
   return (
     <div>

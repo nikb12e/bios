@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import { X, ArrowUp, Sparkles, Flag } from 'lucide-react'
-import { TOPICS, CON, CONCEPTS, type TopicId } from '../data/concepts'
+import { TOPICS, TOP, CON, CONCEPTS, type TopicId } from '../data/concepts'
 import { oral, aiDown, type OralTurn, type OralReply } from '../engine/ai'
 import { useDictation, MicButton, VERDICT } from '../tasks/explain'
 import { get, record } from '../engine/store'
@@ -94,7 +94,7 @@ export default function Oral({ topic: initial, onClose }: { topic?: string; onCl
                     {m.verdict && <div className={`badge ${VERDICT[m.verdict].tone === 'good' ? 'accent' : VERDICT[m.verdict].tone === 'bad' ? 'bad' : 'warn'}`} style={{ marginBottom: 6 }}>{VERDICT[m.verdict].label}</div>}
                     <div>{m.text}</div>
                     {m.missing && m.missing.length > 0 && <div className="fn" style={{ marginTop: 6 }}>Missing: {m.missing.join('; ')}</div>}
-                    {m.concept && CON[m.concept] && <div className="cap" style={{ marginTop: 6 }}>Notes, p. {CON[m.concept].page}</div>}
+                    {m.concept && CON[m.concept] && <div className="cap" style={{ marginTop: 6 }}>{TOP[CON[m.concept].topic].src}, {/^\d/.test(String(CON[m.concept].page)) ? 'p. ' : ''}{CON[m.concept].page}</div>}
                   </motion.div>
                 ))}
               </AnimatePresence>

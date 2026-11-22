@@ -5,6 +5,8 @@ import type { Nav } from '../App'
 import { TOP, CON, conceptsOf, type TopicId } from '../data/concepts'
 import { ORG, type OrgId, type DetailId } from '../data/organelles'
 import { BANK, type Task } from '../data/bank'
+import { BANK2 } from '../data/bank2'
+import { OsmosisViz, TransportViz, FlipViz, FieldViz, FocusViz, ObjectiveViz, StepsViz, KeyViz } from '../art/Explainers'
 import { useStore, record } from '../engine/store'
 import { topicMastery, levelCounts } from '../engine/stats'
 import { Dot, ORG_COLOR, sound, PushBar, useScrolledPast, Sheet, Title, TOPIC_LOOK } from '../ui/kit'
@@ -31,7 +33,7 @@ function Section({ n, title, page, children }: { n: number; title: string; page?
           <span>{n}</span>
         </motion.span>
         <h2 className="t2">{title}</h2>
-        {page !== undefined && <span className="pg">p. {page}</span>}
+        {page !== undefined && <span className="pg">{/^\d/.test(String(page)) ? 'p. ' + page : page}</span>}
       </div>
       <div className="stack">{children}</div>
     </section>
@@ -43,7 +45,7 @@ function Note({ children }: { children: ReactNode }) {
 }
 
 function MiniCheck({ id }: { id: string }) {
-  const task = useMemo(() => BANK.find(t => t.id === id), [id]) as Task | undefined
+  const task = useMemo(() => BANK.find(t => t.id === id) ?? BANK2.find(t => t.id === id), [id]) as Task | undefined
   const [res, setRes] = useState<Result | null>(null)
   const first = useRef(new Set<string>())
   if (!task) return null
@@ -222,6 +224,8 @@ export function LessonView({ nav, id, onBack }: { nav: Nav; id: TopicId; onBack:
   let n = 0
   const items: { n: number; title: string }[] = []
   const S = (title: string, page: string | number | undefined, children: ReactNode) => { items.push({ n: n + 1, title }); return <Section n={++n} title={title} page={page}>{children}</Section> }
+  // a section from a concept in the notes: title, page and text
+  const C = (cid: string, extra?: ReactNode, check?: string) => S(CON[cid].label, CON[cid].page, <><Note>{CON[cid].text}</Note>{extra}{check && <MiniCheck id={check} />}</>)
   const practice = () => nav.start({ mode: 'smart', topic: id, size: 14 }, t.title)
   const look = TOPIC_LOOK[id]
   const [from] = useState(() => originClip())
@@ -344,13 +348,75 @@ export function LessonView({ nav, id, onBack }: { nav: Nav; id: TopicId; onBack:
         {S('Parts of a light microscope', 'earlier lessons', <><DetailCard id="svetlobni" note="Coarse focus knob: rough focusing. Fine focus knob: fine focusing." /><MiniCheck id="mc51" /></>)}
         {S('Magnification', 'earlier lessons', <><ZoomLab /><MiniCheck id="mc52" /></>)}
         {S('Units', 'earlier lessons', <><Units /></>)}
-        <div className="cap" style={{ marginTop: 10 }}>This topic is not in Cell.pdf. The parts and units come from earlier lessons, the focus knob descriptions are added from standard material.</div>
+        {C('mik.def', undefined, 'm20')}
+        {C('mik.zgodovina')}
+        {C('mik.opticni', <KeyViz title="Optical parts" points={['eyepiece', 'objectives', 'condenser with diaphragm', 'lamp (light source)']} />, 'm23')}
+        {C('mik.anglesko')}
+        {C('mik.povecave', undefined, 'm8')}
+        {C('mik.slika', <FlipViz />, 'm3')}
+        {C('mik.globina', <FocusViz />, 'm6')}
+        {C('mik.velika', <ObjectiveViz />, 'm7')}
+        {C('mik.velikost', <FieldViz />, 'm10')}
+        {C('mik.cebula', undefined, 'm15')}
+        {C('mik.racja')}
+        {C('mik.sluznica', undefined, 'm13')}
+        {C('mik.rz', undefined, 'm16')}
+      </>}
+
+      {id === 'uvod' && <>
+        {C('bio.def', undefined, 'u1')}
+        {C('zivljenje.def', undefined, 'u2')}
+        {C('bio.sklopi', undefined, 'u13')}
+        {C('vede.celica')}
+        {C('vede.organizmi')}
+        {C('vede.okolje', undefined, 'u7')}
+        {C('vede.uporabne')}
+        {C('vede.primeri', undefined, 'u9')}
+        {C('bio.povezave', undefined, 'u14')}
+        {C('koncepti.def', undefined, 'u16')}
+        {C('koncepti.seznam', undefined, 'u17')}
+        {C('evolucija')}
+        {C('naravni.izbor', undefined, 'u20')}
+      </>}
+
+      {id === 'znanost' && <>
+        {C('znanost.smeri', undefined, 'z2')}
+        {C('razisk.stopnje', <StepsViz />, 'z17')}
+        {C('hipoteza', undefined, 'z6')}
+        {C('podatki.vrste', undefined, 'z4')}
+        {C('podatki.dejstvo')}
+        {C('metode', undefined, 'z13')}
+        {C('poskus', undefined, 'z9')}
+        {C('teorija.zakon', undefined, 'z12')}
+      </>}
+
+      {id === 'prehajanje' && <>
+        {C('membrana.izbirna', undefined, 'p22')}
+        {C('transport.pasivni', <TransportViz start="pasivni" />, 'p1')}
+        {C('transport.aktivni', <TransportViz start="aktivni" />, 'p2')}
+        {C('osmoza', <OsmosisViz start="hiper" />, 'p7')}
+        {C('raztopine', undefined, 'p6')}
+        {C('plazmoliza', <><OsmosisViz start="hiper" /><Proc3D id="turgor" nav={nav} /></>, 'p9')}
+        {C('deplazmoliza', <OsmosisViz start="hipo" />, 'p12')}
+        {C('zival.okolja', <OsmosisViz start="hipo" cell="animal" />, 'p11')}
+        {C('ld.plazmoliza', undefined, 'p17')}
+        {C('ld.kvasovke', undefined, 'p18')}
+      </>}
+
+      {id === 'lab' && <>
+        {C('lab.pomen')}
+        {C('lab.pribor', undefined, 'l3')}
+        {C('lab.materiali', undefined, 'l5')}
+        {C('lab.varnost', undefined, 'l7')}
+        {C('lab.ghs', undefined, 'l10')}
+        {C('lab.preparat', undefined, 'l13')}
+        {C('lab.skica', undefined, 'l16')}
       </>}
 
             <div className="stack" style={{ marginTop: 44 }}>
               <button className="btn accent full" onClick={practice}><Dumbbell size={18} /> Practise this topic</button>
               <button className="btn full ghost" onClick={() => nav.oral(id)}><Sparkles size={18} /> Oral exam on this topic</button>
-              <div className="cap" style={{ textAlign: 'center', display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center', marginTop: 4 }}><BookOpen size={12} /> All texts come from the Cell.pdf notes.</div>
+              <div className="cap" style={{ textAlign: 'center', display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center', marginTop: 4 }}><BookOpen size={12} /> All texts come from the notes: {t.src}.</div>
             </div>
           </div>
         </div>
